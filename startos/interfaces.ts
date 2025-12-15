@@ -1,24 +1,56 @@
 import { sdk } from './sdk'
-import { uiPort } from './utils'
+import {
+  rpcInterfaceId,
+  rpcPort,
+  peerInterfaceId,
+  peerPort,
+} from './utils'
 
 export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
-  const uiMulti = sdk.MultiHost.of(effects, 'ui-multi')
-  const uiMultiOrigin = await uiMulti.bindPort(uiPort, {
+  // RPC
+  const rpcMulti = sdk.MultiHost.of(effects, 'rpc')
+  const rpcMultiOrigin = await rpcMulti.bindPort(rpcPort, {
     protocol: 'http',
+    preferredExternalPort: rpcPort,
   })
-  const ui = sdk.createInterface(effects, {
-    name: 'Web UI',
-    id: 'ui',
-    description: 'The web interface of Hello World',
-    type: 'ui',
+  const rpc = sdk.createInterface(effects, {
+    name: 'RPC Interface',
+    id: rpcInterfaceId,
+    description: 'Listens for JSON-RPC commands',
+    type: 'api',
     masked: false,
     schemeOverride: null,
     username: null,
     path: '',
     query: {},
   })
+  const rpcReceipt = await rpcMultiOrigin.export([rpc])
 
-  const uiReceipt = await uiMultiOrigin.export([ui])
+  const receipts = [rpcReceipt]
 
-  return [uiReceipt]
+  // PEER
+  const peerMulti = sdk.MultiHost.of(effects, 'peer')
+  const peerMultiOrigin = await peerMulti.bindPort(peerPort, {
+    protocol: null,
+    preferredExternalPort: peerPort,
+    addSsl: null,
+    secure: { ssl: false },
+  })
+  const peer = sdk.createInterface(effects, {
+    name: 'Peer Interface',
+    id: peerInterfaceId,
+    description:
+      'Listens for incoming connections from peers on bitcoin cash network',
+    type: 'p2p',
+    masked: false,
+    schemeOverride: { ssl: null, noSsl: null },
+    username: null,
+    path: '',
+    query: {},
+  })
+  const peerReceipt = await peerMultiOrigin.export([peer])
+
+  receipts.push(peerReceipt)
+
+  return receipts
 })

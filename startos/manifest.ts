@@ -1,24 +1,24 @@
 import { setupManifest } from '@start9labs/start-sdk'
 
 export const manifest = setupManifest({
-  id: 'hello-world',
-  title: 'Hello World',
+  id: 'bitcoin-cash-node',
+  title: 'Bitcoin Cash Node',
   license: 'MIT',
-  wrapperRepo: 'https://github.com/Start9Labs/hello-world-startos',
-  upstreamRepo: 'https://github.com/Start9Labs/hello-world',
-  supportSite: 'https://docs.start9.com/',
-  marketingSite: 'https://start9.com/',
-  donationUrl: 'https://donate.start9.com/',
+  wrapperRepo: 'https://github.com/linkinparkrulz/bitcoin-cash-node-startos',
+  upstreamRepo: 'https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node',
+  supportSite: 'https://docs.bitcoincashnode.org/',
+  marketingSite: 'https://bitcoincashnode.org/',
+  donationUrl: 'https://donate.bitcoincashnode.org/',
   docsUrl:
-    'https://github.com/Start9Labs/hello-world-startos/blob/master/instructions.md',
+    'https://github.com/linkinparkrulz/bitcoin-cash-node-startos/blob/master/docs/instructions.md',
   description: {
-    short: 'Bare bones example of a StartOS service',
-    long: 'Hello World is a template service that provides examples of basic StartOS features.',
+    short: 'Bitcoin Cash Node full implementation',
+    long: 'Bitcoin Cash Node is a full node implementation of the Bitcoin Cash protocol that enables peer-to-peer digital cash transactions.',
   },
   volumes: ['main'],
   images: {
-    'hello-world': {
-      source: { dockerTag: 'start9/hello-world' },
+    'bitcoin-cash-node': {
+      source: { dockerTag: 'mainnet/bitcoin-cash-node:latest' },
     },
   },
   alerts: {

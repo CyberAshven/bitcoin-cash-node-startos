@@ -1,42 +1,79 @@
 import { sdk } from './sdk'
-import { uiPort } from './utils'
+import {
+  rpcPort,
+  rootDir,
+} from './utils'
+
+export const mainMounts = sdk.Mounts.of().mountVolume({
+  volumeId: 'main',
+  subpath: null,
+  mountpoint: rootDir,
+  readonly: false,
+})
 
 export const main = sdk.setupMain(async ({ effects, started }) => {
   /**
    * ======================== Setup (optional) ========================
-   *
-   * In this section, we fetch any resources or run any desired preliminary commands.
    */
-  console.info('Starting Hello World!')
+  const osIp = await sdk.getOsIp(effects)
+
+  const bitcoinArgs: string[] = [
+    `-datadir=${rootDir}`,
+    `-rpcport=${rpcPort}`,
+    `-rpcbind=0.0.0.0:${rpcPort}`,
+    `-rpcallowip=0.0.0.0/0`,
+    `-server=1`,
+    `-onion=${osIp}:9050`,
+  ]
+
+  const bitcoindSub = await sdk.SubContainer.of(
+    effects,
+    { imageId: 'bitcoin-cash-node' },
+    mainMounts,
+    'bitcoind-sub',
+  )
 
   /**
    * ======================== Daemons ========================
-   *
-   * In this section, we create one or more daemons that define the service runtime.
-   *
-   * Each daemon defines its own health check, which can optionally be exposed to the user.
    */
-  return sdk.Daemons.of(effects, started).addDaemon('primary', {
-    subcontainer: await sdk.SubContainer.of(
-      effects,
-      { imageId: 'hello-world' },
-      sdk.Mounts.of().mountVolume({
-        volumeId: 'main',
-        subpath: null,
-        mountpoint: '/data',
-        readonly: false,
-      }),
-      'hello-world-sub',
-    ),
-    exec: { command: ['hello-world'] },
-    ready: {
-      display: 'Web Interface',
-      fn: () =>
-        sdk.healthCheck.checkPortListening(effects, uiPort, {
-          successMessage: 'The web interface is ready',
-          errorMessage: 'The web interface is not ready',
-        }),
-    },
-    requires: [],
-  })
+
+  const daemons = sdk.Daemons.of(effects, started)
+    .addDaemon('primary', {
+      subcontainer: bitcoindSub,
+      exec: {
+        command: ['bitcoind', ...bitcoinArgs],
+        sigtermTimeout: 300_000,
+      },
+      ready: {
+        display: 'RPC',
+        fn: async () => {
+          try {
+            const res = await bitcoindSub.exec([
+              'bitcoin-cli',
+              `-rpcconnect=127.0.0.1:${rpcPort}`,
+              `-rpccookiefile=${rootDir}/.cookie`,
+              'getrpcinfo',
+            ])
+            return res.exitCode === 0
+              ? {
+                  message: 'The Bitcoin Cash Node RPC Interface is ready',
+                  result: 'success',
+                }
+              : {
+                  message: 'The Bitcoin Cash Node RPC Interface is not ready',
+                  result: 'starting',
+                }
+          } catch {
+            console.log('Waiting for RPC to be ready')
+            return {
+              message: 'The Bitcoin Cash Node RPC Interface is not ready',
+              result: 'starting',
+            }
+          }
+        },
+      },
+      requires: [],
+    })
+
+  return daemons
 })
