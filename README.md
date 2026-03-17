@@ -47,8 +47,10 @@ Download the latest `bitcoin-cash-node.s9pk` from the [Releases](https://github.
 
 ## Links
 
-- **Upstream**: [gitlab.com/bitcoin-cash-node/bitcoin-cash-node](https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node)
+- **Upstream BCHN**: [gitlab.com/bitcoin-cash-node/bitcoin-cash-node](https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node)
 - **BCHN Docs**: [docs.bitcoincashnode.org](https://docs.bitcoincashnode.org/)
+- **BCHN Issues**: [gitlab.com/bitcoin-cash-node/bitcoin-cash-node/-/issues](https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node/-/issues)
+- **StartOS Wrapper**: [github.com/CyberAshven/bitcoin-cash-node-startos](https://github.com/CyberAshven/bitcoin-cash-node-startos)
 - **StartOS**: [start9.com](https://start9.com)
 
 ## License
