@@ -1,6 +1,6 @@
 import { FileHelper, T, z } from '@start9labs/start-sdk'
 import { sdk } from '../sdk'
-import { makeZmqBundle } from '../utils'
+import { zmqBundle, dspZmqBundle } from '../utils'
 
 // INI coercion helpers
 const iniString = z
@@ -36,11 +36,15 @@ export const shape = z
     rpcuser: iniString,
     rpcpassword: iniString,
 
-    // ZMQ
+    // ZMQ — block / transaction (ports 28332 / 28333)
     zmqpubrawblock: iniString,
     zmqpubhashblock: iniString,
     zmqpubrawtx: iniString,
     zmqpubhashtx: iniString,
+
+    // ZMQ — Double Spend Proof (ports 28334 / 28335)
+    zmqpubhashds: iniString,
+    zmqpubrawds: iniString,
 
     // Indexing
     txindex: iniBoolean,
@@ -53,7 +57,7 @@ export const shape = z
     rpcthreads: iniNumber,
     rpcworkqueue: iniNumber,
 
-    // Pruning (0 = disabled, ≥550 = MB target)
+    // Pruning (0 = disabled, ≥550 MB target)
     prune: iniNumber,
 
     // Mempool
@@ -66,7 +70,7 @@ export const shape = z
     limitancestorcount: iniNumber,
     limitdescendantcount: iniNumber,
 
-    // Double Spend Proof relay (default: 1 = enabled in BCHN v23+)
+    // DSP relay — always forced on; read-only field for config round-trip
     doublespendproof: iniBoolean,
   })
   .loose()
@@ -91,9 +95,6 @@ const { InputSpec, Value } = sdk
 export const fullConfigSpec = InputSpec.of({
   raw: Value.hidden(shape),
 
-  // ── Network (virtual — stored in store.json, not bitcoin.conf) ───────────
-  // NOTE: network is handled by a separate action writing to store.json.
-
   // ── Node ────────────────────────────────────────────────────────────────
   zmqEnabled: Value.toggle({
     name: 'ZeroMQ Enabled',
@@ -117,13 +118,13 @@ export const fullConfigSpec = InputSpec.of({
     integer: true,
     placeholder: '125',
   }),
-  doublespendproof: Value.toggle({
-    name: 'Double Spend Proof Relay',
+
+  // ── DSP ZMQ ──────────────────────────────────────────────────────────────
+  zmqDspEnabled: Value.toggle({
+    name: 'DSP ZMQ Notifications',
     description:
-      'Enable Double Spend Proof (DSP) relay. When BCHN detects a double-spend attempt, it broadcasts a cryptographic proof to the network. Merchants can use getdsproofscore <txid> to get a 0-1 confidence score for 0-conf payments. Enabled by default in BCHN v23+ — only disable if you have a specific reason.',
-    default: true,
-    warning:
-      'Disabling DSP relay removes 0-confirmation payment protection for merchants and services relying on dsproofscore. Only disable if you understand the implications.',
+      'Stream Double Spend Proof events over ZMQ. When BCHN detects a double-spend attempt it publishes on two channels: zmqpubhashds (port 28334) sends the TX hash, zmqpubrawds (port 28335) sends the raw conflicting TX bytes. Useful for payment processors, exchanges, and POS systems monitoring 0-conf payments.',
+    default: false,
   }),
 
   // ── RPC tuning ───────────────────────────────────────────────────────────
@@ -263,6 +264,8 @@ function fileToForm(
     zmqpubhashtx,
     zmqpubrawblock,
     zmqpubrawtx,
+    zmqpubhashds,
+    zmqpubrawds,
     txindex,
     maxconnections,
     rpcservertimeout,
@@ -275,7 +278,6 @@ function fileToForm(
     excessiveblocksize,
     limitancestorcount,
     limitdescendantcount,
-    doublespendproof,
   } = input
 
   return {
@@ -286,6 +288,7 @@ function fileToForm(
       zmqpubrawblock &&
       zmqpubrawtx
     ),
+    zmqDspEnabled: !!(zmqpubhashds && zmqpubrawds),
     txindex,
     maxconnections,
     rpcservertimeout,
@@ -298,19 +301,16 @@ function fileToForm(
     excessiveblocksize,
     limitancestorcount,
     limitdescendantcount,
-    // default true if not set (matches BCHN default)
-    doublespendproof: doublespendproof ?? true,
   }
 }
 
 function formToFile(
   input: T.DeepPartial<typeof fullConfigSpec._TYPE>,
-  // network is passed in so ZMQ ports can be adjusted for testnet4
-  network: 'mainnet' | 'testnet3' | 'testnet4' | 'chipnet' | 'regtest' = 'mainnet',
 ): z.infer<typeof shape> {
   const {
     raw,
     zmqEnabled,
+    zmqDspEnabled,
     txindex,
     maxconnections,
     rpcservertimeout,
@@ -323,7 +323,6 @@ function formToFile(
     excessiveblocksize,
     limitancestorcount,
     limitdescendantcount,
-    doublespendproof,
   } = input
 
   // pruning is incompatible with txindex — auto-disable txindex when prune > 0
@@ -343,14 +342,22 @@ function formToFile(
     // Indexing
     txindex: effectiveTxindex,
 
-    // ZMQ
+    // ZMQ — block / tx
     ...(zmqEnabled
-      ? makeZmqBundle(network)
+      ? zmqBundle
       : {
           zmqpubrawblock: undefined,
           zmqpubhashblock: undefined,
           zmqpubrawtx: undefined,
           zmqpubhashtx: undefined,
+        }),
+
+    // ZMQ — DSP
+    ...(zmqDspEnabled
+      ? dspZmqBundle
+      : {
+          zmqpubhashds: undefined,
+          zmqpubrawds: undefined,
         }),
 
     // Peers
@@ -374,8 +381,8 @@ function formToFile(
     limitancestorcount: limitancestorcount ?? undefined,
     limitdescendantcount: limitdescendantcount ?? undefined,
 
-    // DSP relay — omit when true (BCHN default), write 0 only when explicitly disabled
-    doublespendproof: doublespendproof === false ? false : undefined,
+    // DSP relay — always forced on (BCHN default, never expose toggle)
+    doublespendproof: true,
   }
 }
 
@@ -396,29 +403,3 @@ export const bitcoinConfFile = FileHelper.ini(
     },
   },
 )
-
-// Variant that writes with a specific network (for ZMQ port selection)
-export function bitcoinConfFileForNetwork(
-  network: 'mainnet' | 'testnet3' | 'testnet4' | 'chipnet' | 'regtest',
-) {
-  return FileHelper.ini(
-    {
-      base: sdk.volumes.main,
-      subpath: '/bitcoin.conf',
-    },
-    fullConfigSpec.partialValidator,
-    { bracketedArray: false },
-    {
-      onRead: (a) => {
-        const base = shape.parse(a)
-        return fileToForm(base)
-      },
-      onWrite: (a) => {
-        return stringifyPrimitives(formToFile(a, network)) as Record<
-          string,
-          unknown
-        >
-      },
-    },
-  )
-}

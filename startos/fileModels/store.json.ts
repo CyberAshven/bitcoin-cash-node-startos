@@ -7,8 +7,9 @@ export const shape = z
     rpcPassword: z.string().catch(''),
     txindex: z.boolean().catch(false),
     zmqEnabled: z.boolean().catch(false),
+    // testnet4 excluded (port conflict with ZMQ 28332/28333)
     network: z
-      .enum(['mainnet', 'testnet3', 'testnet4', 'chipnet', 'regtest'])
+      .enum(['mainnet', 'testnet3', 'chipnet', 'regtest'])
       .catch('mainnet'),
     initialized: z.boolean().catch(false),
   })

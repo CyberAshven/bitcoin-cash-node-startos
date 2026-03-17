@@ -7,13 +7,12 @@ const networkSpec = InputSpec.of({
   network: Value.select({
     name: 'Network',
     description:
-      'Bitcoin Cash network to connect to. Changing this requires a node restart and the chain data for the previous network will remain on disk. Testnet networks are for development and testing only.',
+      'Bitcoin Cash network to connect to. Changing this requires a node restart. Note: testnet4 is not available — its default ports (28332/28333) conflict with the ZMQ block notification ports.',
     warning:
-      'Switching networks requires a full restart. The node will sync from scratch on the new network. Your mainnet data is preserved separately.',
+      'Switching networks requires a full restart. The node will sync from scratch on the new network. Your mainnet data is preserved separately on disk.',
     values: {
       mainnet:  'Mainnet (production BCH)',
       testnet3: 'Testnet3 (legacy test network)',
-      testnet4: 'Testnet4 (current test network)',
       chipnet:  'Chipnet (upgrade / chip testing)',
       regtest:  'Regtest (local testing only)',
     },
@@ -26,7 +25,7 @@ export const networkConfig = sdk.Action.withInput(
   async ({ effects }) => ({
     name: 'Network',
     description:
-      'Select the Bitcoin Cash network (mainnet, testnet4, chipnet, etc.).',
+      'Select the Bitcoin Cash network. RPC and P2P ports adjust automatically for the selected network.',
     warning:
       'Changing the network requires a node restart. RPC and P2P ports will change to match the selected network.',
     allowedStatuses: 'any',

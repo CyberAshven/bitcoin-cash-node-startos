@@ -5,11 +5,13 @@ import { networkConfig } from './config/network'
 import { pruningConfig } from './config/pruning'
 import { mempoolConfig } from './config/mempool'
 import { blockPolicyConfig } from './config/blockpolicy'
+import { dspConfig } from './config/dsp'
 import { viewCredentials } from './credentials'
 
 export const actions = sdk.Actions.of()
   .addAction(networkConfig)
   .addAction(otherConfig)
+  .addAction(dspConfig)
   .addAction(rpcConfig)
   .addAction(mempoolConfig)
   .addAction(pruningConfig)
