@@ -1,8 +1,7 @@
 import { sdk } from './sdk'
-import {
-  rpcPort,
-  rootDir,
-} from './utils'
+import { rpcPort, rootDir } from './utils'
+import { bitcoinConfFile } from './fileModels/bitcoin.conf'
+import { GetBlockchainInfo } from './utils'
 
 export const mainMounts = sdk.Mounts.of().mountVolume({
   volumeId: 'main',
@@ -13,17 +12,17 @@ export const mainMounts = sdk.Mounts.of().mountVolume({
 
 export const main = sdk.setupMain(async ({ effects }) => {
   /**
-   * ======================== Setup (optional) ========================
+   * ======================== Setup ========================
    */
   const osIp = await sdk.getOsIp(effects)
 
+  // Ensure bitcoin.conf exists before starting
+  await bitcoinConfFile.read().once()
+
   const bitcoinArgs: string[] = [
+    `-conf=${rootDir}/bitcoin.conf`,
     `-datadir=${rootDir}`,
-    `-rpcport=${rpcPort}`,
-    `-rpcbind=0.0.0.0:${rpcPort}`,
-    `-rpcallowip=0.0.0.0/0`,
-    `-server=1`,
-    `-onion=${osIp}:9050`,
+    ...(osIp ? [`-onion=${osIp}:9050`] : []),
   ]
 
   const bitcoindSub = await sdk.SubContainer.of(
@@ -64,7 +63,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
                   result: 'starting',
                 }
           } catch {
-            console.log('Waiting for RPC to be ready')
             return {
               message: 'The Bitcoin Cash Node RPC Interface is not ready',
               result: 'starting',
@@ -73,6 +71,39 @@ export const main = sdk.setupMain(async ({ effects }) => {
         },
       },
       requires: [],
+    })
+    .addHealthCheck('sync-progress', {
+      ready: {
+        display: 'Blockchain Sync Progress',
+        fn: async () => {
+          try {
+            const res = await bitcoindSub.exec([
+              'bitcoin-cli',
+              `-rpcconnect=127.0.0.1:${rpcPort}`,
+              `-rpccookiefile=${rootDir}/.cookie`,
+              'getblockchaininfo',
+            ])
+            if (res.exitCode !== 0) {
+              return { message: 'Waiting for sync info', result: 'loading' }
+            }
+            const info: GetBlockchainInfo = JSON.parse(res.stdout.toString())
+            if (info.initialblockdownload) {
+              const pct = (info.verificationprogress * 100).toFixed(2)
+              return {
+                message: `Syncing blockchain: ${pct}% (block ${info.blocks} of ${info.headers})`,
+                result: 'loading',
+              }
+            }
+            return {
+              message: `Blockchain synced at block ${info.blocks}`,
+              result: 'success',
+            }
+          } catch {
+            return { message: 'Waiting for sync info', result: 'loading' }
+          }
+        },
+      },
+      requires: ['primary'],
     })
 
   return daemons
