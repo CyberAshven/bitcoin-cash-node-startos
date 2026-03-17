@@ -65,6 +65,9 @@ export const shape = z
     excessiveblocksize: iniNumber,
     limitancestorcount: iniNumber,
     limitdescendantcount: iniNumber,
+
+    // Double Spend Proof relay (default: 1 = enabled in BCHN v23+)
+    doublespendproof: iniBoolean,
   })
   .loose()
 
@@ -113,6 +116,14 @@ export const fullConfigSpec = InputSpec.of({
     max: 1000,
     integer: true,
     placeholder: '125',
+  }),
+  doublespendproof: Value.toggle({
+    name: 'Double Spend Proof Relay',
+    description:
+      'Enable Double Spend Proof (DSP) relay. When BCHN detects a double-spend attempt, it broadcasts a cryptographic proof to the network. Merchants can use getdsproofscore <txid> to get a 0-1 confidence score for 0-conf payments. Enabled by default in BCHN v23+ — only disable if you have a specific reason.',
+    default: true,
+    warning:
+      'Disabling DSP relay removes 0-confirmation payment protection for merchants and services relying on dsproofscore. Only disable if you understand the implications.',
   }),
 
   // ── RPC tuning ───────────────────────────────────────────────────────────
@@ -264,6 +275,7 @@ function fileToForm(
     excessiveblocksize,
     limitancestorcount,
     limitdescendantcount,
+    doublespendproof,
   } = input
 
   return {
@@ -286,6 +298,8 @@ function fileToForm(
     excessiveblocksize,
     limitancestorcount,
     limitdescendantcount,
+    // default true if not set (matches BCHN default)
+    doublespendproof: doublespendproof ?? true,
   }
 }
 
@@ -309,6 +323,7 @@ function formToFile(
     excessiveblocksize,
     limitancestorcount,
     limitdescendantcount,
+    doublespendproof,
   } = input
 
   // pruning is incompatible with txindex — auto-disable txindex when prune > 0
@@ -358,6 +373,9 @@ function formToFile(
     excessiveblocksize: excessiveblocksize ?? undefined,
     limitancestorcount: limitancestorcount ?? undefined,
     limitdescendantcount: limitdescendantcount ?? undefined,
+
+    // DSP relay — omit when true (BCHN default), write 0 only when explicitly disabled
+    doublespendproof: doublespendproof === false ? false : undefined,
   }
 }
 
