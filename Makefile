@@ -39,7 +39,7 @@ riscv riscv64: arch/riscv64
 $(PACKAGE_ID).s9pk: $(INGREDIENTS) .git/HEAD .git/index
 	@$(MAKE) --no-print-directory ingredients
 	@echo "   Packing '$@'..."
-	start-cli s9pk pack -o $@
+	start-cli s9pk pack --arch=x86_64 --arch=aarch64 -o $@
 
 $(PACKAGE_ID)_%.s9pk: $(INGREDIENTS) .git/HEAD .git/index
 	@$(MAKE) --no-print-directory ingredients
