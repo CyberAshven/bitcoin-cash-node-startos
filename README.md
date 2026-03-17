@@ -23,12 +23,16 @@ Bitcoin Cash Node is a professional grade full node implementation of the Bitcoi
 
 ## Network Ports
 
+This package runs **mainnet only**.
+
 | Port | Protocol | Purpose |
 |------|----------|---------|
-| 8332 | HTTP | RPC interface |
+| 8332 | HTTP | RPC interface (mainnet) |
 | 8333 | TCP | P2P network connections (mainnet) |
 | 28332 | TCP | ZeroMQ block notifications (optional) |
 | 28333 | TCP | ZeroMQ transaction notifications (optional) |
+
+> **Note:** BCHN also supports testnet3 (18332/18333), testnet4 (28332/28333), chipnet (48332/48333), and regtest (18443/18444) — but those networks are not exposed by this package.
 
 ## Building from Source
 
