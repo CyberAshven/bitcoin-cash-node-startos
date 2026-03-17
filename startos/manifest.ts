@@ -4,7 +4,7 @@ export const manifest = setupManifest({
   id: 'bitcoin-cash-node',
   title: 'Bitcoin Cash Node',
   license: 'MIT',
-  packageRepo: 'https://github.com/linkinparkrulz/bitcoin-cash-node-startos',
+  packageRepo: 'https://github.com/CyberAshven/bitcoin-cash-node-startos',
   upstreamRepo: 'https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node',
   marketingUrl: 'https://bitcoincashnode.org/',
   donationUrl: 'https://donate.bitcoincashnode.org/',
