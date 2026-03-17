@@ -16,6 +16,55 @@ concurrency:
 jobs:
   build:
     if: github.event.pull_request.draft == false
-    uses: start9labs/shared-workflows/.github/workflows/buildService.yml@master
-    secrets:
-      DEV_KEY: ${{ secrets.DEV_KEY }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup build environment
+        uses: start9labs/shared-workflows/.github/actions/setup-build-env@master
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Find or create developer signing key
+        run: |
+          if [ -n "${{ secrets.DEV_KEY }}" ]; then
+            mkdir -p ~/.startos
+            printf '%s' "${{ secrets.DEV_KEY }}" > ~/.startos/developer.key.pem
+          else
+            start-cli init-key
+          fi
+
+      - name: Debug - versions and ingredients
+        run: |
+          echo "=== start-cli version ==="
+          start-cli --version
+          echo "=== node/npm ==="
+          node --version && npm --version
+          echo "=== docker ==="
+          docker --version
+          echo "=== ingredients ==="
+          start-cli s9pk list-ingredients || echo "list-ingredients failed with $?"
+          echo "=== manifest id ==="
+          awk -F"'" '/id:/ {print $2}' startos/manifest.ts
+
+      - name: npm ci
+        run: npm ci
+
+      - name: npm run build
+        run: npm run build
+
+      - name: Debug - built output
+        run: |
+          ls -lh javascript/ || echo "no javascript dir"
+
+      - name: start-cli s9pk pack (verbose)
+        run: |
+          RUST_LOG=debug RUST_BACKTRACE=1 start-cli s9pk pack -o bitcoin-cash-node.s9pk 2>&1 || \
+          (echo "PACK FAILED with exit $?" && exit 1)
+
+      - name: Upload .s9pk
+        if: success()
+        uses: actions/upload-artifact@v5
+        with:
+          name: bitcoin-cash-node.s9pk
+          path: ./bitcoin-cash-node.s9pk
+          compression-level: 0
