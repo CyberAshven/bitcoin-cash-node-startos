@@ -22,6 +22,7 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
     rpcPassword,
     txindex: false,
     zmqEnabled: false,
+    network: 'mainnet',
     initialized: true,
   })
 

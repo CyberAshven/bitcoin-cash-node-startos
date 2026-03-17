@@ -1,7 +1,7 @@
 import { sdk } from './sdk'
-import { rpcPort, rootDir } from './utils'
+import { rootDir, networkPorts, networkFlag, Network, GetBlockchainInfo, GetPeerInfo } from './utils'
 import { bitcoinConfFile } from './fileModels/bitcoin.conf'
-import { GetBlockchainInfo } from './utils'
+import { storeJson } from './fileModels/store.json'
 
 export const mainMounts = sdk.Mounts.of().mountVolume({
   volumeId: 'main',
@@ -19,9 +19,19 @@ export const main = sdk.setupMain(async ({ effects }) => {
   // Ensure bitcoin.conf exists before starting
   await bitcoinConfFile.read().once()
 
+  // Read network and credentials from store
+  const store = await storeJson.read().once()
+  const network: Network = store?.network ?? 'mainnet'
+  const rpcUser = store?.rpcUser ?? 'bitcoin-cash-node'
+  const rpcPassword = store?.rpcPassword ?? ''
+  const { rpc: rpcPort } = networkPorts[network]
+  const netFlag = networkFlag[network]
+
   const bitcoinArgs: string[] = [
     `-conf=${rootDir}/bitcoin.conf`,
     `-datadir=${rootDir}`,
+    `-rpcport=${rpcPort}`,
+    ...(netFlag ? [netFlag] : []),
     ...(osIp ? [`-onion=${osIp}:9050`] : []),
   ]
 
@@ -31,6 +41,18 @@ export const main = sdk.setupMain(async ({ effects }) => {
     mainMounts,
     'bitcoind-sub',
   )
+
+  // Helper: run bitcoin-cli inside the container
+  async function cli(...args: string[]) {
+    return bitcoindSub.exec([
+      'bitcoin-cli',
+      `-rpcconnect=127.0.0.1`,
+      `-rpcport=${rpcPort}`,
+      `-rpcuser=${rpcUser}`,
+      `-rpcpassword=${rpcPassword}`,
+      ...args,
+    ])
+  }
 
   /**
    * ======================== Daemons ========================
@@ -47,12 +69,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
         display: 'RPC',
         fn: async () => {
           try {
-            const res = await bitcoindSub.exec([
-              'bitcoin-cli',
-              `-rpcconnect=127.0.0.1:${rpcPort}`,
-              `-rpccookiefile=${rootDir}/.cookie`,
-              'getrpcinfo',
-            ])
+            const res = await cli('getrpcinfo')
             return res.exitCode === 0
               ? {
                   message: 'The Bitcoin Cash Node RPC Interface is ready',
@@ -74,15 +91,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
     })
     .addHealthCheck('sync-progress', {
       ready: {
-        display: 'Blockchain Sync Progress',
+        display: 'Blockchain Sync',
         fn: async () => {
           try {
-            const res = await bitcoindSub.exec([
-              'bitcoin-cli',
-              `-rpcconnect=127.0.0.1:${rpcPort}`,
-              `-rpccookiefile=${rootDir}/.cookie`,
-              'getblockchaininfo',
-            ])
+            const res = await cli('getblockchaininfo')
             if (res.exitCode !== 0) {
               return { message: 'Waiting for sync info', result: 'loading' }
             }
@@ -95,11 +107,47 @@ export const main = sdk.setupMain(async ({ effects }) => {
               }
             }
             return {
-              message: `Blockchain synced at block ${info.blocks}`,
+              message: `Synced — block ${info.blocks}${info.pruned ? ' (pruned)' : ''}`,
               result: 'success',
             }
           } catch {
             return { message: 'Waiting for sync info', result: 'loading' }
+          }
+        },
+      },
+      requires: ['primary'],
+    })
+    .addHealthCheck('peer-connections', {
+      ready: {
+        display: 'Peer Connections',
+        fn: async () => {
+          try {
+            const res = await cli('getpeerinfo')
+            if (res.exitCode !== 0) {
+              return { message: 'Unable to query peers', result: 'loading' }
+            }
+            const peers: GetPeerInfo = JSON.parse(res.stdout.toString())
+            const count = peers.length
+            if (count === 0) {
+              return {
+                message: 'No peers connected — node may be starting up or isolated',
+                result: 'loading',
+              }
+            }
+            if (count < 3) {
+              return {
+                message: `Only ${count} peer(s) connected — network connectivity may be limited`,
+                result: 'loading',
+              }
+            }
+            const inbound = peers.filter((p) => p.inbound).length
+            const outbound = count - inbound
+            return {
+              message: `${count} peers (${outbound} outbound, ${inbound} inbound)`,
+              result: 'success',
+            }
+          } catch {
+            return { message: 'Unable to query peers', result: 'loading' }
           }
         },
       },

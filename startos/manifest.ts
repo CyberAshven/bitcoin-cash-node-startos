@@ -7,9 +7,11 @@ export const manifest = setupManifest({
   packageRepo: 'https://github.com/linkinparkrulz/bitcoin-cash-node-startos',
   upstreamRepo: 'https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node',
   marketingUrl: 'https://bitcoincashnode.org/',
-  donationUrl: 'https://donate.bitcoincashnode.org/',
+  donationUrl: 'bitcoincash:prnc2exht3zxlrqqcat690tc85cvfuypngh7szx6mk',
   docsUrls: [
     'https://github.com/linkinparkrulz/bitcoin-cash-node-startos/blob/master/docs/instructions.md',
+    'https://github.com/bitcoin-cash-node/bitcoin-cash-node',
+    'https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node',
   ],
   description: {
     short: 'Bitcoin Cash Node full implementation',
