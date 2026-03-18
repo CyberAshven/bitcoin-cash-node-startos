@@ -4,14 +4,11 @@ export const rootDir = '/data'
 export const rpcInterfaceId = 'rpc'
 export const peerInterfaceId = 'peer'
 export const zmqInterfaceId = 'zmq'
-export const zmqDspInterfaceId = 'zmq-dsp'
 
 // ── Network types ─────────────────────────────────────────────────────────────
-// testnet4 excluded: its P2P/RPC ports (28332/28333) conflict with ZMQ ports
 export const NETWORKS = ['mainnet', 'testnet3', 'chipnet', 'regtest'] as const
 export type Network = (typeof NETWORKS)[number]
 
-// RPC and P2P ports per network (BCHN defaults)
 export const networkPorts: Record<Network, { rpc: number; peer: number }> = {
   mainnet:  { rpc: 8332,  peer: 8333  },
   testnet3: { rpc: 18332, peer: 18333 },
@@ -19,7 +16,6 @@ export const networkPorts: Record<Network, { rpc: number; peer: number }> = {
   regtest:  { rpc: 18443, peer: 18444 },
 }
 
-// CLI flag to activate a non-mainnet network
 export const networkFlag: Record<Network, string | null> = {
   mainnet:  null,
   testnet3: '-testnet',
@@ -27,27 +23,25 @@ export const networkFlag: Record<Network, string | null> = {
   regtest:  '-regtest',
 }
 
-// Backwards-compat aliases
 export const rpcPort = networkPorts.mainnet.rpc
 export const peerPort = networkPorts.mainnet.peer
 
-// ── ZMQ — block / transaction notifications ───────────────────────────────────
-// No port conflicts possible now that testnet4 is excluded
-export const zmqPort   = 28332   // block hash & raw block
-export const zmqPortTx = 28333   // tx hash & raw tx
+// ── ZMQ — block / tx notifications (28332 / 28333) ───────────────────────────
+export const zmqPort   = 28332
+export const zmqPortTx = 28333
 
-export const zmqBundle = {
+export const zmqBundle: Record<string, string> = {
   zmqpubrawblock:  `tcp://0.0.0.0:${zmqPort}`,
   zmqpubhashblock: `tcp://0.0.0.0:${zmqPort}`,
   zmqpubrawtx:     `tcp://0.0.0.0:${zmqPortTx}`,
   zmqpubhashtx:    `tcp://0.0.0.0:${zmqPortTx}`,
 }
 
-// ── ZMQ — Double Spend Proof notifications ─────────────────────────────────────
-export const zmqPortDspHash = 28334   // zmqpubhashds  — hash of conflicting tx
-export const zmqPortDspRaw  = 28335   // zmqpubrawds   — raw conflicting tx bytes
+// ── ZMQ — DSP notifications (28334 / 28335) — always on ──────────────────────
+export const zmqPortDspHash = 28334
+export const zmqPortDspRaw  = 28335
 
-export const dspZmqBundle = {
+export const dspZmqBundle: Record<string, string> = {
   zmqpubhashds: `tcp://0.0.0.0:${zmqPortDspHash}`,
   zmqpubrawds:  `tcp://0.0.0.0:${zmqPortDspRaw}`,
 }

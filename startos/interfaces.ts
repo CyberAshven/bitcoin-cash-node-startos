@@ -1,14 +1,7 @@
 import { sdk } from './sdk'
 import {
-  rpcInterfaceId,
-  peerInterfaceId,
-  zmqInterfaceId,
-  zmqDspInterfaceId,
-  networkPorts,
-  zmqPort,
-  zmqPortTx,
-  zmqPortDspHash,
-  zmqPortDspRaw,
+  rpcInterfaceId, peerInterfaceId, zmqInterfaceId,
+  networkPorts, zmqPort, zmqPortTx, zmqPortDspHash, zmqPortDspRaw,
   Network,
 } from './utils'
 import { bitcoinConfFile } from './fileModels/bitcoin.conf'
@@ -17,7 +10,6 @@ import { storeJson } from './fileModels/store.json'
 export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   const bitcoinConf = (await bitcoinConfFile.read().once()) as {
     zmqEnabled?: boolean
-    zmqDspEnabled?: boolean
   } | null
 
   const store = await storeJson.read().once()
@@ -28,14 +20,14 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
 
   // ── RPC ──────────────────────────────────────────────────────────────────
   const rpcMulti = sdk.MultiHost.of(effects, 'rpc')
-  const rpcMultiOrigin = await rpcMulti.bindPort(rpcPort, {
+  const rpcOrigin = await rpcMulti.bindPort(rpcPort, {
     protocol: 'http',
     preferredExternalPort: rpcPort,
   })
   const rpc = sdk.createInterface(effects, {
     name: 'RPC Interface',
     id: rpcInterfaceId,
-    description: 'Listens for JSON-RPC commands',
+    description: 'JSON-RPC for wallets, miners, and dev tools',
     type: 'api',
     masked: false,
     schemeOverride: null,
@@ -43,11 +35,11 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     path: '',
     query: {},
   })
-  receipts.push(await rpcMultiOrigin.export([rpc]))
+  receipts.push(await rpcOrigin.export([rpc]))
 
   // ── P2P ──────────────────────────────────────────────────────────────────
   const peerMulti = sdk.MultiHost.of(effects, 'peer')
-  const peerMultiOrigin = await peerMulti.bindPort(peerPort, {
+  const peerOrigin = await peerMulti.bindPort(peerPort, {
     protocol: null,
     preferredExternalPort: peerPort,
     addSsl: null,
@@ -56,8 +48,7 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   const peer = sdk.createInterface(effects, {
     name: 'Peer Interface',
     id: peerInterfaceId,
-    description:
-      'Listens for incoming connections from peers on the Bitcoin Cash network',
+    description: 'P2P Bitcoin Cash network connections',
     type: 'p2p',
     masked: false,
     schemeOverride: { ssl: null, noSsl: null },
@@ -65,9 +56,9 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     path: '',
     query: {},
   })
-  receipts.push(await peerMultiOrigin.export([peer]))
+  receipts.push(await peerOrigin.export([peer]))
 
-  // ── ZMQ — block / tx (conditional) ───────────────────────────────────────
+  // ── ZMQ block/tx (conditional) ───────────────────────────────────────────
   if (bitcoinConf?.zmqEnabled) {
     const zmqMulti = sdk.MultiHost.of(effects, 'zmq')
     const zmqOrigin = await zmqMulti.bindPort(zmqPort, {
@@ -79,8 +70,7 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     const zmq = sdk.createInterface(effects, {
       name: 'ZeroMQ Interface',
       id: zmqInterfaceId,
-      description:
-        'ZeroMQ block and transaction notifications for real-time blockchain data',
+      description: 'Block and transaction notifications',
       type: 'api',
       masked: false,
       schemeOverride: null,
@@ -100,38 +90,24 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     receipts.push(await zmqTxOrigin.export([]))
   }
 
-  // ── ZMQ — DSP (conditional) ───────────────────────────────────────────────
-  if (bitcoinConf?.zmqDspEnabled) {
-    const zmqDspHashMulti = sdk.MultiHost.of(effects, 'zmq-dsp-hash')
-    const zmqDspHashOrigin = await zmqDspHashMulti.bindPort(zmqPortDspHash, {
-      preferredExternalPort: zmqPortDspHash,
-      addSsl: null,
-      secure: { ssl: false },
-      protocol: null,
-    })
-    const zmqDsp = sdk.createInterface(effects, {
-      name: 'DSP ZMQ Interface',
-      id: zmqDspInterfaceId,
-      description:
-        'ZeroMQ Double Spend Proof notifications. Port 28334 = TX hash, port 28335 = raw TX bytes.',
-      type: 'api',
-      masked: false,
-      schemeOverride: null,
-      username: null,
-      path: '',
-      query: {},
-    })
-    receipts.push(await zmqDspHashOrigin.export([zmqDsp]))
+  // ── ZMQ DSP (ALWAYS ON) ──────────────────────────────────────────────────
+  const dspHashMulti = sdk.MultiHost.of(effects, 'zmq-dsp-hash')
+  const dspHashOrigin = await dspHashMulti.bindPort(zmqPortDspHash, {
+    preferredExternalPort: zmqPortDspHash,
+    addSsl: null,
+    secure: { ssl: false },
+    protocol: null,
+  })
+  receipts.push(await dspHashOrigin.export([]))
 
-    const zmqDspRawMulti = sdk.MultiHost.of(effects, 'zmq-dsp-raw')
-    const zmqDspRawOrigin = await zmqDspRawMulti.bindPort(zmqPortDspRaw, {
-      preferredExternalPort: zmqPortDspRaw,
-      addSsl: null,
-      secure: { ssl: false },
-      protocol: null,
-    })
-    receipts.push(await zmqDspRawOrigin.export([]))
-  }
+  const dspRawMulti = sdk.MultiHost.of(effects, 'zmq-dsp-raw')
+  const dspRawOrigin = await dspRawMulti.bindPort(zmqPortDspRaw, {
+    preferredExternalPort: zmqPortDspRaw,
+    addSsl: null,
+    secure: { ssl: false },
+    protocol: null,
+  })
+  receipts.push(await dspRawOrigin.export([]))
 
   return receipts
 })

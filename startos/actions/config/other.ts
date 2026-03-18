@@ -5,7 +5,7 @@ export const otherConfig = sdk.Action.withInput(
   'other-config',
   async ({ effects }) => ({
     name: 'Node Settings',
-    description: 'Configure transaction index, ZeroMQ notifications, and connection limits.',
+    description: 'Transaction index, ZeroMQ notifications, and connection limits.',
     warning: null,
     allowedStatuses: 'any',
     group: 'Configuration',
