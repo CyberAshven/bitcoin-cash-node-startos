@@ -60,6 +60,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
-          prerelease: true
+          prerelease: false
           body_path: change-log.txt
           files: ./*.s9pk
