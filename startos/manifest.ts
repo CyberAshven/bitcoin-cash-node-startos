@@ -14,13 +14,13 @@ export const manifest = setupManifest({
     'https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node',
   ],
   description: {
-    short: 'Bitcoin Cash Node full implementation',
-    long: 'Bitcoin Cash Node is a full node implementation of the Bitcoin Cash protocol that enables peer-to-peer digital cash transactions.',
+    short: 'Bitcoin Cash Node full implementation (pre-release)',
+    long: 'Bitcoin Cash Node (BCHN) — pre-release testing build. Tracks the latest available Docker image. Based on v29.0.0 with May 2026 network upgrade support. For testing only; use the stable release for production.',
   },
   volumes: ['main'],
   images: {
     'bitcoin-cash-node': {
-      source: { dockerTag: 'mainnet/bitcoin-cash-node:latest' },
+      source: { dockerTag: 'mainnet/bitcoin-cash-node:latest' }, // pre-release: tracks future BCHN builds
     },
   },
   alerts: {
