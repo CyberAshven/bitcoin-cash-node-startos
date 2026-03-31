@@ -2,8 +2,15 @@ name: Release Service
 
 on:
   push:
-    tags:
-      - 'v*.*'
+    branches: ['master']
+    paths-ignore: ['*.md']
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Publish as pre-release?'
+        required: false
+        default: 'false'
+        type: boolean
 
 permissions:
   contents: write
@@ -55,11 +62,31 @@ jobs:
           } > change-log.txt
         shell: bash
 
-      - name: Create GitHub Release
+      - name: Set release metadata
+        id: meta
+        run: |
+          if [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
+            echo "tag=pre-release" >> $GITHUB_OUTPUT
+            echo "name=Bitcoin Cash Node — Pre-release" >> $GITHUB_OUTPUT
+            echo "is_pre=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+            echo "name=Bitcoin Cash Node — Latest Stable" >> $GITHUB_OUTPUT
+            echo "is_pre=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Move release tag to current commit
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git tag -f ${{ steps.meta.outputs.tag }}
+          git push origin -f ${{ steps.meta.outputs.tag }}
+
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          prerelease: false
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          prerelease: ${{ steps.meta.outputs.is_pre }}
           body_path: change-log.txt
           files: ./*.s9pk
