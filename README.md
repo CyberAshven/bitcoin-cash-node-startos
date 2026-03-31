@@ -4,7 +4,9 @@
 
 # Bitcoin Cash Node StartOS Package
 
-This package provides Bitcoin Cash Node (BCHN) as a StartOS service, enabling easy deployment and management of a Bitcoin Cash full node on your StartOS device.
+This package provides **Bitcoin Cash Node (BCHN) v29.0.0** as a StartOS service, enabling easy deployment and management of a Bitcoin Cash full node on your StartOS device.
+
+> **v29.0.0** implements the May 15, 2026 network upgrade (P2S32, native loops, functions, bitwise operations). Nodes running v28.x will stop syncing after the upgrade activates — this version is required.
 
 ## About Bitcoin Cash Node
 
