@@ -8,6 +8,7 @@ import { blockPolicyConfig } from './config/blockpolicy'
 import { peersConfig } from './config/peers'
 import { viewCredentials } from './credentials'
 import { generateRpcUser } from './generateRpcUser'
+import { deleteRpcUser } from './deleteRpcUser'
 import { runtimeInfo } from './runtimeInfo'
 import { reindexBlockchain } from './reindexBlockchain'
 import { reindexChainstate } from './reindexChainstate'
@@ -28,6 +29,7 @@ export const actions = sdk.Actions.of()
   // ── Credentials ─────────────────────────────────────────────────────────────
   .addAction(viewCredentials)
   .addAction(generateRpcUser)
+  .addAction(deleteRpcUser)
   // ── Maintenance ─────────────────────────────────────────────────────────────
   .addAction(reindexBlockchain)
   .addAction(reindexChainstate)

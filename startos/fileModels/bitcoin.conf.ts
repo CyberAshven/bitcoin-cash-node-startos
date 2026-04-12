@@ -64,8 +64,6 @@ export const shape = z
     dbcache: iniNumber,
     dbbatchsize: iniNumber,
     peerbloomfilters: iniBoolean,
-    i2psam: iniString,
-    i2pacceptincoming: iniBoolean,
     onlynet: iniStringArray,
     externalip: iniStringArray,
     addnode: iniStringArray,
@@ -92,7 +90,7 @@ function stringifyPrimitives(a: unknown): unknown {
 
 const { InputSpec, Value, List } = sdk
 
-const ONLYNET_VALUES = { ipv4: 'IPv4', ipv6: 'IPv6', onion: 'Tor (.onion)', i2p: 'I2P' } as const
+const ONLYNET_VALUES = { ipv4: 'IPv4', ipv6: 'IPv6', onion: 'Tor (.onion)' } as const
 type OnlynetKey = keyof typeof ONLYNET_VALUES
 const ALL_ONLYNETS = Object.keys(ONLYNET_VALUES) as OnlynetKey[]
 
@@ -168,18 +166,6 @@ export const fullConfigSpec = InputSpec.of({
       'Restrict peer connections to specific network types. Uncheck a network to exclude it. All checked = allow all (default).',
     default: ALL_ONLYNETS,
     values: ONLYNET_VALUES,
-  }),
-  i2pEnabled: Value.toggle({
-    name: 'I2P Enabled',
-    description:
-      'Enable I2P anonymous network connections via an embedded i2pd daemon. Requires restart to take effect.',
-    default: false,
-  }),
-  i2pIncoming: Value.toggle({
-    name: 'Accept I2P Incoming',
-    description:
-      'Accept incoming peer connections over I2P. Disable for outbound-only I2P connections.',
-    default: true,
   }),
   addnode: Value.list(
     List.text(
@@ -364,7 +350,7 @@ function fileToForm(
   const {
     zmqpubhashblock, zmqpubhashtx, zmqpubrawblock, zmqpubrawtx,
     txindex, persistmempool,
-    maxconnections, peerbloomfilters, i2psam, i2pacceptincoming, onlynet, addnode, maxuploadtarget,
+    maxconnections, peerbloomfilters, onlynet, addnode, maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
@@ -380,8 +366,6 @@ function fileToForm(
     zmqEnabled: !!(zmqpubhashblock && zmqpubhashtx && zmqpubrawblock && zmqpubrawtx),
     txindex, persistmempool,
     maxconnections, peerbloomfilters,
-    i2pEnabled: !!i2psam,
-    i2pIncoming: i2pacceptincoming !== false,
     onlynet: onlynetForm,
     addnode: addnode?.filter((v): v is string => !!v) ?? [],
     maxuploadtarget,
@@ -399,7 +383,7 @@ function formToFile(
 ): z.infer<typeof shape> {
   const {
     raw, zmqEnabled, txindex, persistmempool,
-    maxconnections, peerbloomfilters, i2pEnabled, i2pIncoming, onlynet, addnode, maxuploadtarget,
+    maxconnections, peerbloomfilters, onlynet, addnode, maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
@@ -433,9 +417,6 @@ function formToFile(
     ...dspZmqBundle,
     maxconnections: maxconnections ?? undefined,
     peerbloomfilters: peerbloomfilters ?? undefined,
-    // I2P — embedded i2pd on 127.0.0.1:7656 (SAM bridge)
-    i2psam: i2pEnabled ? '127.0.0.1:7656' : undefined,
-    i2pacceptincoming: i2pEnabled ? (i2pIncoming !== false) : undefined,
     onlynet: writeOnlynet,
     addnode: addnode && (addnode as string[]).length > 0 ? (addnode as string[]).filter(Boolean) : undefined,
     maxuploadtarget: maxuploadtarget ?? undefined,

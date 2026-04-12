@@ -16,15 +16,10 @@ export const manifest = setupManifest({
     short: 'Bitcoin Cash Node full implementation',
     long: 'Bitcoin Cash Node (BCHN) v29.0.0 — a full node implementation of the Bitcoin Cash protocol with support for the May 2026 network upgrade (P2S32, native loops, functions, bitwise operations). Enables peer-to-peer digital cash transactions on mainnet, testnet3, chipnet, or regtest.',
   },
-  volumes: ['main', 'i2pd'],
+  volumes: ['main'],
   images: {
     'bitcoin-cash-node': {
       source: { dockerTag: 'mainnet/bitcoin-cash-node:v29.0.0' },
-    },
-    i2pd: {
-      source: { dockerTag: 'purplei2p/i2pd:release-2.58.0' },
-      arch: ['x86_64', 'aarch64'],
-      emulateMissingAs: 'x86_64',
     },
   },
   alerts: {

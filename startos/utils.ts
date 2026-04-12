@@ -4,11 +4,6 @@ export const rootDir = '/data'
 export const rpcInterfaceId = 'rpc'
 export const peerInterfaceId = 'peer'
 export const zmqInterfaceId = 'zmq'
-export const i2pConsoleInterfaceId = 'i2p-console'
-
-// ── I2P ports ─────────────────────────────────────────────────────────────────
-export const i2pControlPort = 7654  // i2pd I2PControl API (HTTPS, self-signed)
-export const i2pUiPort = 7070       // i2pd HTTP admin console
 
 // ── Network types ─────────────────────────────────────────────────────────────
 export const NETWORKS = ['mainnet', 'testnet3', 'chipnet', 'regtest'] as const
