@@ -13,7 +13,6 @@ import { reindexBlockchain } from './reindexBlockchain'
 import { reindexChainstate } from './reindexChainstate'
 import { deletePeers } from './deletePeers'
 import { deleteTxIndex } from './deleteTxIndex'
-import { deleteCoinstatsIndex } from './deleteCoinstatsIndex'
 
 export const actions = sdk.Actions.of()
   // ── Info ────────────────────────────────────────────────────────────────────
@@ -34,4 +33,3 @@ export const actions = sdk.Actions.of()
   .addAction(reindexChainstate)
   .addAction(deletePeers)
   .addAction(deleteTxIndex)
-  .addAction(deleteCoinstatsIndex)

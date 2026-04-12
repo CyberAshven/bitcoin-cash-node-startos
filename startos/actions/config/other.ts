@@ -13,8 +13,6 @@ export const otherConfig = sdk.Action.withInput(
   }),
   fullConfigSpec.filter({
     txindex: true,
-    blockfilterindex: true,
-    coinstatsindex: true,
     zmqEnabled: true,
     persistmempool: true,
     dbcache: true,

@@ -48,8 +48,6 @@ export const shape = z
     zmqpubhashds: iniString,
     zmqpubrawds: iniString,
     txindex: iniBoolean,
-    blockfilterindex: iniBoolean,
-    coinstatsindex: iniBoolean,
     maxconnections: iniNumber,
     rpcservertimeout: iniNumber,
     rpcthreads: iniNumber,
@@ -66,6 +64,8 @@ export const shape = z
     dbcache: iniNumber,
     dbbatchsize: iniNumber,
     peerbloomfilters: iniBoolean,
+    i2psam: iniString,
+    i2pacceptincoming: iniBoolean,
     onlynet: iniStringArray,
     externalip: iniStringArray,
     addnode: iniStringArray,
@@ -92,8 +92,9 @@ function stringifyPrimitives(a: unknown): unknown {
 
 const { InputSpec, Value, List } = sdk
 
-const ONLYNET_VALUES = { ipv4: 'IPv4', ipv6: 'IPv6', onion: 'Tor (.onion)' } as const
+const ONLYNET_VALUES = { ipv4: 'IPv4', ipv6: 'IPv6', onion: 'Tor (.onion)', i2p: 'I2P' } as const
 type OnlynetKey = keyof typeof ONLYNET_VALUES
+const ALL_ONLYNETS = Object.keys(ONLYNET_VALUES) as OnlynetKey[]
 
 export const fullConfigSpec = InputSpec.of({
   raw: Value.hidden(shape),
@@ -109,18 +110,6 @@ export const fullConfigSpec = InputSpec.of({
     name: 'Transaction Index',
     description:
       'Build a full transaction index. Required for Fulcrum and other indexers. Cannot be enabled with pruning.',
-    default: false,
-  }),
-  blockfilterindex: Value.toggle({
-    name: 'Block Filter Index',
-    description:
-      'Build a compact block filter index (BIP 157/158). Required by some light clients and wallets for efficient SPV. Increases disk usage slightly.',
-    default: false,
-  }),
-  coinstatsindex: Value.toggle({
-    name: 'Coin Stats Index',
-    description:
-      'Build a coin stats index to enable the gettxoutsetinfo RPC with hash_type=muhash. Useful for chain analysis and auditing.',
     default: false,
   }),
   persistmempool: Value.toggle({
@@ -176,9 +165,21 @@ export const fullConfigSpec = InputSpec.of({
   onlynet: Value.multiselect({
     name: 'Allowed Networks',
     description:
-      'Restrict peer connections to specific network types. Leave all unchecked to allow all networks (default). Check specific types to restrict.',
-    default: [] as OnlynetKey[],
+      'Restrict peer connections to specific network types. Uncheck a network to exclude it. All checked = allow all (default).',
+    default: ALL_ONLYNETS,
     values: ONLYNET_VALUES,
+  }),
+  i2pEnabled: Value.toggle({
+    name: 'I2P Enabled',
+    description:
+      'Enable I2P anonymous network connections via an embedded i2pd daemon. Requires restart to take effect.',
+    default: false,
+  }),
+  i2pIncoming: Value.toggle({
+    name: 'Accept I2P Incoming',
+    description:
+      'Accept incoming peer connections over I2P. Disable for outbound-only I2P connections.',
+    default: true,
   }),
   addnode: Value.list(
     List.text(
@@ -362,20 +363,26 @@ function fileToForm(
 ): T.DeepPartial<typeof fullConfigSpec._TYPE> {
   const {
     zmqpubhashblock, zmqpubhashtx, zmqpubrawblock, zmqpubrawtx,
-    txindex, blockfilterindex, coinstatsindex, persistmempool,
-    maxconnections, peerbloomfilters, onlynet, addnode, maxuploadtarget,
+    txindex, persistmempool,
+    maxconnections, peerbloomfilters, i2psam, i2pacceptincoming, onlynet, addnode, maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
     dbcache, dbbatchsize, blocknotify, wallet,
   } = input
 
+  // When no onlynet is written in conf, all networks are allowed — show all checked
+  const onlynetFromConf = onlynet?.filter((v): v is string => !!v) ?? []
+  const onlynetForm = onlynetFromConf.length === 0 ? ALL_ONLYNETS : onlynetFromConf as OnlynetKey[]
+
   return {
     raw: input ?? {},
     zmqEnabled: !!(zmqpubhashblock && zmqpubhashtx && zmqpubrawblock && zmqpubrawtx),
-    txindex, blockfilterindex, coinstatsindex, persistmempool,
+    txindex, persistmempool,
     maxconnections, peerbloomfilters,
-    onlynet: (onlynet?.filter((v): v is string => !!v) ?? []) as OnlynetKey[],
+    i2pEnabled: !!i2psam,
+    i2pIncoming: i2pacceptincoming !== false,
+    onlynet: onlynetForm,
     addnode: addnode?.filter((v): v is string => !!v) ?? [],
     maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
@@ -391,8 +398,8 @@ function formToFile(
   input: T.DeepPartial<typeof fullConfigSpec._TYPE>,
 ): z.infer<typeof shape> {
   const {
-    raw, zmqEnabled, txindex, blockfilterindex, coinstatsindex, persistmempool,
-    maxconnections, peerbloomfilters, onlynet, addnode, maxuploadtarget,
+    raw, zmqEnabled, txindex, persistmempool,
+    maxconnections, peerbloomfilters, i2pEnabled, i2pIncoming, onlynet, addnode, maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
@@ -400,7 +407,10 @@ function formToFile(
   } = input
 
   const effectiveTxindex = prune && prune > 0 ? false : (txindex ?? false)
+  // If all networks selected (or none specified), don't write onlynet (means allow all)
   const onlynetList = (onlynet as string[] | undefined)?.filter(Boolean) ?? []
+  const allSelected = ALL_ONLYNETS.every((n) => onlynetList.includes(n))
+  const writeOnlynet = onlynetList.length > 0 && !allSelected ? onlynetList : undefined
 
   return {
     ...raw,
@@ -413,8 +423,6 @@ function formToFile(
     rpcauth: raw?.rpcauth?.filter((v): v is string => typeof v === 'string'),
     externalip: raw?.externalip?.filter((v): v is string => typeof v === 'string'),
     txindex: effectiveTxindex,
-    blockfilterindex: blockfilterindex ?? undefined,
-    coinstatsindex: coinstatsindex ?? undefined,
     persistmempool: persistmempool ?? true,
     // ZMQ block/tx — conditional
     ...(zmqEnabled
@@ -425,7 +433,10 @@ function formToFile(
     ...dspZmqBundle,
     maxconnections: maxconnections ?? undefined,
     peerbloomfilters: peerbloomfilters ?? undefined,
-    onlynet: onlynetList.length > 0 ? onlynetList : undefined,
+    // I2P — embedded i2pd on 127.0.0.1:7656 (SAM bridge)
+    i2psam: i2pEnabled ? '127.0.0.1:7656' : undefined,
+    i2pacceptincoming: i2pEnabled ? (i2pIncoming !== false) : undefined,
+    onlynet: writeOnlynet,
     addnode: addnode && (addnode as string[]).length > 0 ? (addnode as string[]).filter(Boolean) : undefined,
     maxuploadtarget: maxuploadtarget ?? undefined,
     rpcservertimeout: rpcservertimeout ?? undefined,

@@ -1,16 +1,14 @@
 import { sdk } from './sdk'
 import {
-  rpcInterfaceId, peerInterfaceId, zmqInterfaceId,
-  networkPorts, zmqPort, zmqPortTx, zmqPortDspHash, zmqPortDspRaw,
+  rpcInterfaceId, peerInterfaceId, zmqInterfaceId, i2pConsoleInterfaceId,
+  networkPorts, zmqPort, zmqPortTx, zmqPortDspHash, zmqPortDspRaw, i2pUiPort,
   Network,
 } from './utils'
 import { bitcoinConfFile } from './fileModels/bitcoin.conf'
 import { storeJson } from './fileModels/store.json'
 
 export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
-  const bitcoinConf = (await bitcoinConfFile.read().once()) as {
-    zmqEnabled?: boolean
-  } | null
+  const bitcoinConf = await bitcoinConfFile.read().const(effects)
 
   const store = await storeJson.read().once()
   const network: Network = store?.network ?? 'mainnet'
@@ -27,7 +25,7 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   const rpc = sdk.createInterface(effects, {
     name: 'RPC Interface',
     id: rpcInterfaceId,
-    description: 'JSON-RPC for wallets, miners, and dev tools',
+    description: 'Listens for JSON-RPC commands',
     type: 'api',
     masked: false,
     schemeOverride: null,
@@ -48,7 +46,7 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   const peer = sdk.createInterface(effects, {
     name: 'Peer Interface',
     id: peerInterfaceId,
-    description: 'P2P Bitcoin Cash network connections',
+    description: 'Listens for incoming connections from peers on the bitcoin cash network',
     type: 'p2p',
     masked: false,
     schemeOverride: { ssl: null, noSsl: null },
@@ -70,7 +68,7 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     const zmq = sdk.createInterface(effects, {
       name: 'ZeroMQ Interface',
       id: zmqInterfaceId,
-      description: 'Block and transaction notifications',
+      description: 'Streams real-time block and transaction notifications (hashes and raw data)',
       type: 'api',
       masked: false,
       schemeOverride: null,
@@ -108,6 +106,27 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     protocol: null,
   })
   receipts.push(await dspRawOrigin.export([]))
+
+  // ── I2P Console (conditional — when I2P is enabled) ──────────────────────
+  const i2pEnabled = !!(bitcoinConf?.raw as Record<string, unknown> | undefined)?.i2psam
+  if (i2pEnabled) {
+    const i2pMulti = sdk.MultiHost.of(effects, 'i2p-console')
+    const i2pOrigin = await i2pMulti.bindPort(i2pUiPort, {
+      protocol: 'http',
+    })
+    const i2pConsole = sdk.createInterface(effects, {
+      name: 'I2P Daemon Console',
+      id: i2pConsoleInterfaceId,
+      description: 'Interface to access the embedded I2P daemon console',
+      type: 'ui',
+      masked: false,
+      schemeOverride: null,
+      username: null,
+      path: '',
+      query: {},
+    })
+    receipts.push(await i2pOrigin.export([i2pConsole]))
+  }
 
   return receipts
 })

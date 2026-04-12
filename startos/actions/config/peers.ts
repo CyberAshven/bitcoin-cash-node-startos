@@ -15,6 +15,8 @@ export const peersConfig = sdk.Action.withInput(
     maxconnections: true,
     peerbloomfilters: true,
     onlynet: true,
+    i2pEnabled: true,
+    i2pIncoming: true,
     addnode: true,
     maxuploadtarget: true,
   }),
