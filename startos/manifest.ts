@@ -11,7 +11,6 @@ export const manifest = setupManifest({
   docsUrls: [
     'https://github.com/CyberAshven/bitcoin-cash-node-startos/blob/master/docs/instructions.md',
     'https://github.com/bitcoin-cash-node/bitcoin-cash-node',
-    'https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node',
   ],
   description: {
     short: 'Bitcoin Cash Node full implementation',
@@ -26,10 +25,18 @@ export const manifest = setupManifest({
   alerts: {
     install: null,
     update: null,
-    uninstall: null,
+    uninstall:
+      'Uninstalling Bitcoin Cash Node will permanently delete all blockchain data, wallet data, and configuration. Ensure you have a backup before proceeding.',
     restore: null,
     start: null,
     stop: null,
   },
-  dependencies: {},
+  dependencies: {
+    tor: {
+      description:
+        'Enables Tor onion routing for anonymous peer-to-peer connections. When Tor is installed and running, Bitcoin Cash Node automatically routes all connections through the Tor network for enhanced privacy.',
+      optional: true,
+      s9pk: null,
+    },
+  },
 })

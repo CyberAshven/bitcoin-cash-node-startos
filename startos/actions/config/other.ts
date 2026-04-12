@@ -11,7 +11,7 @@ export const otherConfig = sdk.Action.withInput(
     group: 'Configuration',
     visibility: 'enabled',
   }),
-  fullConfigSpec.filter({ txindex: true, zmqEnabled: true, maxconnections: true }),
+  fullConfigSpec.filter({ txindex: true, blockfilterindex: true, coinstatsindex: true, zmqEnabled: true, maxconnections: true }),
   async ({ effects }) => bitcoinConfFile.read().once(),
   async ({ effects, input }) => {
     await bitcoinConfFile.merge(effects, input)

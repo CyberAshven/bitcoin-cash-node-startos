@@ -52,6 +52,8 @@ export const shape = z
     limitancestorcount: iniNumber,
     limitdescendantcount: iniNumber,
     doublespendproof: iniBoolean,
+    blockfilterindex: iniBoolean,
+    coinstatsindex: iniBoolean,
   })
   .loose()
 
@@ -85,6 +87,18 @@ export const fullConfigSpec = InputSpec.of({
     name: 'Transaction Index',
     description:
       'Build a full transaction index. Required for Fulcrum and other indexers. Cannot be enabled with pruning.',
+    default: false,
+  }),
+  blockfilterindex: Value.toggle({
+    name: 'Block Filter Index',
+    description:
+      'Build a compact block filter index (BIP 157/158). Required by some light clients and wallets for efficient SPV. Increases disk usage slightly.',
+    default: false,
+  }),
+  coinstatsindex: Value.toggle({
+    name: 'Coin Stats Index',
+    description:
+      'Build a coin stats index to enable the gettxoutsetinfo RPC with hash_type=muhash. Useful for chain analysis and auditing.',
     default: false,
   }),
   maxconnections: Value.number({
@@ -225,6 +239,7 @@ function fileToForm(
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
+    blockfilterindex, coinstatsindex,
   } = input
 
   return {
@@ -234,6 +249,7 @@ function fileToForm(
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
+    blockfilterindex, coinstatsindex,
   }
 }
 
@@ -245,6 +261,7 @@ function formToFile(
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
+    blockfilterindex, coinstatsindex,
   } = input
 
   const effectiveTxindex = prune && prune > 0 ? false : (txindex ?? false)
@@ -276,6 +293,8 @@ function formToFile(
     excessiveblocksize: excessiveblocksize ?? undefined,
     limitancestorcount: limitancestorcount ?? undefined,
     limitdescendantcount: limitdescendantcount ?? undefined,
+    blockfilterindex: blockfilterindex ?? undefined,
+    coinstatsindex: coinstatsindex ?? undefined,
     // DSP relay — always forced on
     doublespendproof: true,
   }
