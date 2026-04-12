@@ -12,6 +12,9 @@ export const shape = z
       .enum(['mainnet', 'testnet3', 'chipnet', 'regtest'])
       .catch('mainnet'),
     initialized: z.boolean().catch(false),
+    reindexBlockchain: z.boolean().catch(false),
+    reindexChainstate: z.boolean().catch(false),
+    fullySynced: z.boolean().catch(false),
   })
   .strip()
 

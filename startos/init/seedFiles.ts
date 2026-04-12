@@ -1,3 +1,4 @@
+import { totalmem } from 'os'
 import { sdk } from '../sdk'
 import { storeJson } from '../fileModels/store.json'
 import { bitcoinConfFile } from '../fileModels/bitcoin.conf'
@@ -16,6 +17,8 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
   if (kind !== 'install') return
 
   const rpcPassword = generatePassword(32)
+  // Dynamic dbcache: 25% of system RAM, capped at 5120 MB
+  const dbcache = Math.min(Math.floor((totalmem() * 0.25) / (1024 * 1024)), 5120)
 
   await storeJson.merge(effects, {
     rpcUser: 'bitcoin-cash-node',
@@ -24,6 +27,9 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
     zmqEnabled: false,
     network: 'mainnet',
     initialized: true,
+    reindexBlockchain: false,
+    reindexChainstate: false,
+    fullySynced: false,
   })
 
   await bitcoinConfFile.merge(effects, {
@@ -33,8 +39,10 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
     },
     zmqEnabled: false,
     txindex: false,
+    persistmempool: true,
     maxconnections: 125,
     rpcthreads: 4,
     rpcworkqueue: 64,
+    dbcache,
   })
 })

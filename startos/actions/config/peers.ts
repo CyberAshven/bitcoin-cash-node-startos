@@ -1,26 +1,22 @@
 import { sdk } from '../../sdk'
 import { bitcoinConfFile, fullConfigSpec } from '../../fileModels/bitcoin.conf'
 
-export const otherConfig = sdk.Action.withInput(
-  'other-config',
+export const peersConfig = sdk.Action.withInput(
+  'peers-config',
   async ({ effects: _effects }) => ({
-    name: 'Node Settings',
-    description: 'Indexes, ZeroMQ, mempool persistence, performance cache, and advanced options.',
+    name: 'Peer Settings',
+    description: 'Configure peer connections, network restrictions, and bandwidth limits.',
     warning: null,
     allowedStatuses: 'any' as const,
     group: 'Configuration',
     visibility: 'enabled' as const,
   }),
   fullConfigSpec.filter({
-    txindex: true,
-    blockfilterindex: true,
-    coinstatsindex: true,
-    zmqEnabled: true,
-    persistmempool: true,
-    dbcache: true,
-    dbbatchsize: true,
-    blocknotify: true,
-    wallet: true,
+    maxconnections: true,
+    peerbloomfilters: true,
+    onlynet: true,
+    addnode: true,
+    maxuploadtarget: true,
   }),
   async ({ effects: _effects }) => bitcoinConfFile.read().once(),
   async ({ effects, input }) => {

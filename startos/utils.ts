@@ -63,6 +63,16 @@ export type GetPeerInfo = Array<{
   synced_blocks: number
 }>
 
+export type GetNetworkInfo = {
+  version: number
+  subversion: string
+  connections: number
+  connections_in: number
+  connections_out: number
+  networkactive: boolean
+  localaddresses: Array<{ address: string; port: number; score: number }>
+}
+
 export type GetMempoolInfo = {
   size: number
   bytes: number

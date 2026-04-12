@@ -2,13 +2,9 @@ import { sdk } from './sdk'
 import { rootDir, networkPorts, networkFlag, Network, GetBlockchainInfo, GetPeerInfo } from './utils'
 import { bitcoinConfFile } from './fileModels/bitcoin.conf'
 import { storeJson } from './fileModels/store.json'
+import { mainMounts } from './mounts'
 
-export const mainMounts = sdk.Mounts.of().mountVolume({
-  volumeId: 'main',
-  subpath: null,
-  mountpoint: rootDir,
-  readonly: false,
-})
+export { mainMounts }
 
 export const main = sdk.setupMain(async ({ effects }) => {
   /**
@@ -27,12 +23,21 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const { rpc: rpcPort } = networkPorts[network]
   const netFlag = networkFlag[network]
 
+  // Read and clear reindex flags
+  const reindexBlockchain = store?.reindexBlockchain ?? false
+  const reindexChainstate = store?.reindexChainstate ?? false
+  if (reindexBlockchain || reindexChainstate) {
+    await storeJson.merge(effects, { reindexBlockchain: false, reindexChainstate: false })
+  }
+
   const bitcoinArgs: string[] = [
     `-conf=${rootDir}/bitcoin.conf`,
     `-datadir=${rootDir}`,
     `-rpcport=${rpcPort}`,
     ...(netFlag ? [netFlag] : []),
     ...(osIp ? [`-onion=${osIp}:9050`] : []),
+    ...(reindexBlockchain ? ['-reindex'] : []),
+    ...(reindexChainstate ? ['-reindex-chainstate'] : []),
   ]
 
   const bitcoindSub = await sdk.SubContainer.of(
@@ -105,6 +110,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
                 message: `Syncing blockchain: ${pct}% (block ${info.blocks} of ${info.headers})`,
                 result: 'loading',
               }
+            }
+            // Mark as fully synced on first completion
+            const currentStore = await storeJson.read().once()
+            if (!currentStore?.fullySynced) {
+              await storeJson.merge(effects, { fullySynced: true })
             }
             return {
               message: `Synced — block ${info.blocks}${info.pruned ? ' (pruned)' : ''}`,

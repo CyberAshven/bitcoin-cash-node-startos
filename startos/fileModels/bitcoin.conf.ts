@@ -1,9 +1,16 @@
 import { FileHelper, T, z } from '@start9labs/start-sdk'
+import { totalmem } from 'os'
 import { sdk } from '../sdk'
 import { zmqBundle, dspZmqBundle } from '../utils'
 
+// INI coercion helpers: INI parsing returns strings, with duplicate keys producing arrays.
 const iniString = z
   .union([z.array(z.string()).transform((a) => a.at(-1)!), z.string()])
+  .optional()
+  .catch(undefined)
+
+const iniStringArray = z
+  .union([z.array(z.string()), z.string().transform((s) => [s])])
   .optional()
   .catch(undefined)
 
@@ -33,6 +40,7 @@ export const shape = z
     rpcallowip: z.string().catch('0.0.0.0/0'),
     rpcuser: iniString,
     rpcpassword: iniString,
+    rpcauth: iniStringArray,
     zmqpubrawblock: iniString,
     zmqpubhashblock: iniString,
     zmqpubrawtx: iniString,
@@ -40,6 +48,8 @@ export const shape = z
     zmqpubhashds: iniString,
     zmqpubrawds: iniString,
     txindex: iniBoolean,
+    blockfilterindex: iniBoolean,
+    coinstatsindex: iniBoolean,
     maxconnections: iniNumber,
     rpcservertimeout: iniNumber,
     rpcthreads: iniNumber,
@@ -48,12 +58,20 @@ export const shape = z
     maxmempool: iniNumber,
     minrelaytxfee: iniNumber,
     mempoolexpiry: iniNumber,
+    persistmempool: iniBoolean,
     excessiveblocksize: iniNumber,
     limitancestorcount: iniNumber,
     limitdescendantcount: iniNumber,
     doublespendproof: iniBoolean,
-    blockfilterindex: iniBoolean,
-    coinstatsindex: iniBoolean,
+    dbcache: iniNumber,
+    dbbatchsize: iniNumber,
+    peerbloomfilters: iniBoolean,
+    onlynet: iniStringArray,
+    externalip: iniStringArray,
+    addnode: iniStringArray,
+    maxuploadtarget: iniNumber,
+    blocknotify: iniString,
+    wallet: iniStringArray,
   })
   .loose()
 
@@ -72,11 +90,15 @@ function stringifyPrimitives(a: unknown): unknown {
   return a
 }
 
-const { InputSpec, Value } = sdk
+const { InputSpec, Value, List } = sdk
+
+const ONLYNET_VALUES = { ipv4: 'IPv4', ipv6: 'IPv6', onion: 'Tor (.onion)' } as const
+type OnlynetKey = keyof typeof ONLYNET_VALUES
 
 export const fullConfigSpec = InputSpec.of({
   raw: Value.hidden(shape),
 
+  // ── Node Settings ──────────────────────────────────────────────────────────
   zmqEnabled: Value.toggle({
     name: 'ZeroMQ Enabled',
     description:
@@ -101,6 +123,40 @@ export const fullConfigSpec = InputSpec.of({
       'Build a coin stats index to enable the gettxoutsetinfo RPC with hash_type=muhash. Useful for chain analysis and auditing.',
     default: false,
   }),
+  persistmempool: Value.toggle({
+    name: 'Persist Mempool',
+    description:
+      'Save the mempool to disk on shutdown and reload it on startup. Reduces re-propagation work after restarts.',
+    default: true,
+  }),
+
+  // ── Performance ────────────────────────────────────────────────────────────
+  dbcache: Value.number({
+    name: 'Database Cache',
+    description:
+      'Size of the in-memory UTXO database cache. Larger values speed up IBD and general operation. Defaults to 25% of system RAM (max 5120 MB).',
+    required: false,
+    default: null,
+    min: 4,
+    max: 16384,
+    integer: true,
+    units: 'MB',
+    placeholder: String(Math.min(Math.floor((totalmem() * 0.25) / (1024 * 1024)), 5120)),
+  }),
+  dbbatchsize: Value.number({
+    name: 'Database Batch Size',
+    description:
+      'Maximum database write batch size in bytes. Increasing this can improve IBD performance at the cost of peak memory usage.',
+    required: false,
+    default: null,
+    min: 1024,
+    max: null,
+    integer: true,
+    units: 'bytes',
+    placeholder: '16777216',
+  }),
+
+  // ── Peer Connections ───────────────────────────────────────────────────────
   maxconnections: Value.number({
     name: 'Maximum Connections',
     description: 'Maximum number of peer connections.',
@@ -111,7 +167,48 @@ export const fullConfigSpec = InputSpec.of({
     integer: true,
     placeholder: '125',
   }),
+  peerbloomfilters: Value.toggle({
+    name: 'Serve Bloom Filters',
+    description:
+      'Serve BIP37 bloom filters to peers. Required by some older SPV wallets. Disabled by default for bandwidth reasons.',
+    default: false,
+  }),
+  onlynet: Value.multiselect({
+    name: 'Allowed Networks',
+    description:
+      'Restrict peer connections to specific network types. Leave all unchecked to allow all networks (default). Check specific types to restrict.',
+    default: [] as OnlynetKey[],
+    values: ONLYNET_VALUES,
+  }),
+  addnode: Value.list(
+    List.text(
+      {
+        name: 'Add Peers',
+        description:
+          'Manually add specific peers by address (ip:port or hostname:port). The node will always maintain connections to these peers.',
+        default: [],
+        minLength: null,
+        maxLength: null,
+      },
+      {
+        masked: false,
+        placeholder: '192.168.1.10:8333',
+      },
+    ),
+  ),
+  maxuploadtarget: Value.number({
+    name: 'Max Upload Target',
+    description: 'Limit total outbound bandwidth per 24 hours. 0 = unlimited.',
+    required: false,
+    default: null,
+    min: 0,
+    max: null,
+    integer: true,
+    units: 'MB/day',
+    placeholder: '0 (unlimited)',
+  }),
 
+  // ── RPC ───────────────────────────────────────────────────────────────────
   rpcservertimeout: Value.number({
     name: 'RPC Server Timeout',
     description: 'Seconds before an RPC call times out.',
@@ -146,6 +243,7 @@ export const fullConfigSpec = InputSpec.of({
     placeholder: '64',
   }),
 
+  // ── Pruning ───────────────────────────────────────────────────────────────
   prune: Value.number({
     name: 'Prune Target',
     description:
@@ -160,6 +258,7 @@ export const fullConfigSpec = InputSpec.of({
     warning: 'Enabling pruning disables the transaction index.',
   }),
 
+  // ── Mempool & Relay ───────────────────────────────────────────────────────
   maxmempool: Value.number({
     name: 'Max Mempool Size',
     description: 'Maximum mempool memory usage in MB.',
@@ -195,6 +294,7 @@ export const fullConfigSpec = InputSpec.of({
     placeholder: '336',
   }),
 
+  // ── Block Policy ──────────────────────────────────────────────────────────
   excessiveblocksize: Value.number({
     name: 'Excessive Block Size',
     description: 'Max accepted block size in bytes. BCHN default: 32000000 (32 MB).',
@@ -228,6 +328,33 @@ export const fullConfigSpec = InputSpec.of({
     units: 'transactions',
     placeholder: '25',
   }),
+
+  // ── Advanced ──────────────────────────────────────────────────────────────
+  blocknotify: Value.text({
+    name: 'Block Notify Script',
+    description:
+      'Execute this shell command when a new block is received. Use %s as a placeholder for the block hash.',
+    required: false,
+    default: null,
+    masked: false,
+    placeholder: '/path/to/script.sh %s',
+  }),
+  wallet: Value.list(
+    List.text(
+      {
+        name: 'Wallet Files',
+        description:
+          'Specify wallet file names to load on startup. Leave empty to use the default wallet.',
+        default: [],
+        minLength: null,
+        maxLength: null,
+      },
+      {
+        masked: false,
+        placeholder: 'wallet.dat',
+      },
+    ),
+  ),
 })
 
 function fileToForm(
@@ -235,21 +362,28 @@ function fileToForm(
 ): T.DeepPartial<typeof fullConfigSpec._TYPE> {
   const {
     zmqpubhashblock, zmqpubhashtx, zmqpubrawblock, zmqpubrawtx,
-    txindex, maxconnections,
+    txindex, blockfilterindex, coinstatsindex, persistmempool,
+    maxconnections, peerbloomfilters, onlynet, addnode, maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
-    blockfilterindex, coinstatsindex,
+    dbcache, dbbatchsize, blocknotify, wallet,
   } = input
 
   return {
     raw: input ?? {},
     zmqEnabled: !!(zmqpubhashblock && zmqpubhashtx && zmqpubrawblock && zmqpubrawtx),
-    txindex, maxconnections,
+    txindex, blockfilterindex, coinstatsindex, persistmempool,
+    maxconnections, peerbloomfilters,
+    onlynet: (onlynet?.filter((v): v is string => !!v) ?? []) as OnlynetKey[],
+    addnode: addnode?.filter((v): v is string => !!v) ?? [],
+    maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
-    blockfilterindex, coinstatsindex,
+    dbcache, dbbatchsize,
+    blocknotify: blocknotify ?? undefined,
+    wallet: wallet?.filter((v): v is string => !!v) ?? [],
   }
 }
 
@@ -257,14 +391,16 @@ function formToFile(
   input: T.DeepPartial<typeof fullConfigSpec._TYPE>,
 ): z.infer<typeof shape> {
   const {
-    raw, zmqEnabled, txindex, maxconnections,
+    raw, zmqEnabled, txindex, blockfilterindex, coinstatsindex, persistmempool,
+    maxconnections, peerbloomfilters, onlynet, addnode, maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
-    blockfilterindex, coinstatsindex,
+    dbcache, dbbatchsize, blocknotify, wallet,
   } = input
 
   const effectiveTxindex = prune && prune > 0 ? false : (txindex ?? false)
+  const onlynetList = (onlynet as string[] | undefined)?.filter(Boolean) ?? []
 
   return {
     ...raw,
@@ -274,7 +410,12 @@ function formToFile(
     rpcallowip: '0.0.0.0/0',
     rpcuser: raw?.rpcuser,
     rpcpassword: raw?.rpcpassword,
+    rpcauth: raw?.rpcauth?.filter((v): v is string => typeof v === 'string'),
+    externalip: raw?.externalip?.filter((v): v is string => typeof v === 'string'),
     txindex: effectiveTxindex,
+    blockfilterindex: blockfilterindex ?? undefined,
+    coinstatsindex: coinstatsindex ?? undefined,
+    persistmempool: persistmempool ?? true,
     // ZMQ block/tx — conditional
     ...(zmqEnabled
       ? zmqBundle
@@ -283,6 +424,10 @@ function formToFile(
     // ZMQ DSP — ALWAYS ON
     ...dspZmqBundle,
     maxconnections: maxconnections ?? undefined,
+    peerbloomfilters: peerbloomfilters ?? undefined,
+    onlynet: onlynetList.length > 0 ? onlynetList : undefined,
+    addnode: addnode && (addnode as string[]).length > 0 ? (addnode as string[]).filter(Boolean) : undefined,
+    maxuploadtarget: maxuploadtarget ?? undefined,
     rpcservertimeout: rpcservertimeout ?? undefined,
     rpcthreads: rpcthreads ?? undefined,
     rpcworkqueue: rpcworkqueue ?? undefined,
@@ -293,8 +438,10 @@ function formToFile(
     excessiveblocksize: excessiveblocksize ?? undefined,
     limitancestorcount: limitancestorcount ?? undefined,
     limitdescendantcount: limitdescendantcount ?? undefined,
-    blockfilterindex: blockfilterindex ?? undefined,
-    coinstatsindex: coinstatsindex ?? undefined,
+    dbcache: dbcache ?? undefined,
+    dbbatchsize: dbbatchsize ?? undefined,
+    blocknotify: blocknotify ?? undefined,
+    wallet: wallet && (wallet as string[]).length > 0 ? (wallet as string[]).filter(Boolean) : undefined,
     // DSP relay — always forced on
     doublespendproof: true,
   }
