@@ -12,7 +12,7 @@ This package provides **Bitcoin Cash Node (BCHN) v29.0.0** as a StartOS service,
 
 Bitcoin Cash Node is a professional grade full node implementation of the Bitcoin Cash protocol. It aims to create sound money that is usable by everyone in the world, enabling peer-to-peer digital cash transactions that scale many orders of magnitude beyond current limits.
 
-## Features
+## Features 
 
 - **Full Node Implementation**: Complete Bitcoin Cash protocol implementation
 - **Peer-to-Peer Network**: Connects to the Bitcoin Cash network
