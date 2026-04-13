@@ -102,13 +102,13 @@ export const fullConfigSpec = InputSpec.of({
     name: 'ZeroMQ Enabled',
     description:
       'Enable ZeroMQ notifications for block and transaction events. Required by Fulcrum, block explorers, and similar tools.',
-    default: false,
+    default: true,
   }),
   txindex: Value.toggle({
     name: 'Transaction Index',
     description:
       'Build a full transaction index. Required for Fulcrum and other indexers. Cannot be enabled with pruning.',
-    default: false,
+    default: true,
   }),
   persistmempool: Value.toggle({
     name: 'Persist Mempool',
