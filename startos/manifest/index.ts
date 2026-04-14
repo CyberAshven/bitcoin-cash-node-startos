@@ -1,4 +1,5 @@
 import { setupManifest } from '@start9labs/start-sdk'
+import { long, short } from './i18n'
 
 export const manifest = setupManifest({
   id: 'bitcoin-cash-node',
@@ -12,10 +13,7 @@ export const manifest = setupManifest({
     'https://github.com/BitcoinCash1/bitcoin-cash-node-startos/blob/master/docs/instructions.md',
     'https://github.com/bitcoin-cash-node/bitcoin-cash-node',
   ],
-  description: {
-    short: 'Bitcoin Cash Node full implementation',
-    long: 'Bitcoin Cash Node (BCHN) v29.0.0 — a full node implementation of the Bitcoin Cash protocol with support for the May 2026 network upgrade (P2S32, native loops, functions, bitwise operations). Enables peer-to-peer digital cash transactions on mainnet, testnet3, chipnet, or regtest.',
-  },
+  description: { short, long },
   volumes: ['main'],
   images: {
     'bitcoin-cash-node': {
