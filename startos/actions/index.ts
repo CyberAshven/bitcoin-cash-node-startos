@@ -1,4 +1,5 @@
 import { sdk } from '../sdk'
+import { autoconfig } from './config/autoconfig'
 import { otherConfig } from './config/other'
 import { rpcConfig } from './config/rpc'
 import { networkConfig } from './config/network'
@@ -16,6 +17,8 @@ import { deletePeers } from './deletePeers'
 import { deleteTxIndex } from './deleteTxIndex'
 
 export const actions = sdk.Actions.of()
+  // ── Hidden (cross-package) ──────────────────────────────────────────────────
+  .addAction(autoconfig)
   // ── Info ────────────────────────────────────────────────────────────────────
   .addAction(runtimeInfo)
   // ── Configuration ───────────────────────────────────────────────────────────
