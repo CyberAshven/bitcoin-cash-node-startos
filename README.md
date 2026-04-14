@@ -14,13 +14,13 @@ Bitcoin Cash Node is a professional grade full node implementation of the Bitcoi
 
 ## Features 
 
-- **Full Node Implementation**: Complete Bitcoin Cash protocol implementation
-- **Peer-to-Peer Network**: Connects to the Bitcoin Cash network
-- **RPC Interface**: JSON-RPC API for integration, wallets, and miners
-- **ZeroMQ Notifications**: Optional real-time block and transaction events for indexers
-- **Transaction Index**: Optional `txindex` for full historical tx lookup (required by Fulcrum)
-- **Double Spend Proofs**: DSP relay always active with ZMQ push streams for payment processors
-- **Config UI**: Manage txindex, ZMQ, connections, and RPC tuning from the StartOS interface
+- **Full Node Implementation**: Complete Bitcoin Cash protocol implementation.
+- **Peer-to-Peer Network**: Connects to the Bitcoin Cash network.
+- **RPC Interface**: JSON-RPC API for integration, wallets, and miners.
+- **ZeroMQ Notifications**: Optional real-time block and transaction events for indexers.
+- **Transaction Index**: Optional `txindex` for full historical tx lookup (required by Fulcrum).
+- **Double Spend Proofs**: DSP relay always active with ZMQ push streams for payment processors.
+- **Config UI**: Manage txindex, ZMQ, connections, and RPC tuning from the StartOS interface.
 - **Tor Support**: Automatic onion routing via StartOS
 
 ## Network Ports
