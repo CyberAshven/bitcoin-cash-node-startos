@@ -92,9 +92,26 @@ export const main = sdk.setupMain(async ({ effects }) => {
 
   return sdk.Daemons.of(effects)
     .addOneshot('nocow', {
-      subcontainer: bitcoindSub,
+      subcontainer: null,
       exec: {
-        command: ['chattr', '-R', '+C', rootDir],
+        fn: async () => {
+          try {
+            // Ensure target exists before attempting to set NoCOW flags.
+            const mkdirRes = await bitcoindSub.exec(['mkdir', '-p', rootDir])
+            if (mkdirRes.exitCode !== 0) {
+              console.warn(`nocow: mkdir failed for ${rootDir}; continuing without chattr`)
+              return null
+            }
+
+            const chattrRes = await bitcoindSub.exec(['chattr', '-R', '+C', rootDir])
+            if (chattrRes.exitCode !== 0) {
+              console.warn(`nocow: chattr not applied for ${rootDir}; continuing startup`)
+            }
+          } catch (err) {
+            console.warn('nocow: unable to set NoCOW attributes; continuing startup', err)
+          }
+          return null
+        },
       },
       requires: [],
     })
