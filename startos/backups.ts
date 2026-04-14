@@ -1,5 +1,15 @@
 import { sdk } from './sdk'
 
-export const { createBackup, restoreInit } = sdk.setupBackups(
-  async ({ effects }) => sdk.Backups.ofVolumes('main'),
+export const { createBackup, restoreInit } = sdk.setupBackups(async () =>
+  sdk.Backups.ofVolumes('main').setOptions({
+    exclude: [
+      '/blocks',
+      '/chainstate',
+      '/indexes',
+      '/peers.dat',
+      '/banlist.dat',
+      '/fee_estimates.dat',
+      '/mempool.dat',
+    ],
+  }),
 )
