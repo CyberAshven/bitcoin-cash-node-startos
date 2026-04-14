@@ -20,14 +20,17 @@ export const manifest = setupManifest({
   images: {
     'bitcoin-cash-node': {
       source: { dockerTag: 'mainnet/bitcoin-cash-node:v29.0.0' },
+      arch: ['x86_64', 'aarch64'],
     },
   },
   alerts: {
-    install: null,
+    install:
+      'Bitcoin Cash Node will begin syncing the full BCH blockchain after installation. Initial Block Download may take several hours depending on your hardware and network speed.',
     update: null,
     uninstall:
       'Uninstalling Bitcoin Cash Node will permanently delete all blockchain data, wallet data, and configuration. Ensure you have a backup before proceeding.',
-    restore: null,
+    restore:
+      'Restoring Bitcoin Cash Node will overwrite your current configuration and wallet data. Blockchain data is not included in backups and must be re-synced.',
     start: null,
     stop: null,
   },
@@ -36,7 +39,10 @@ export const manifest = setupManifest({
       description:
         'Enables Tor onion routing for anonymous peer-to-peer connections. When Tor is installed and running, Bitcoin Cash Node automatically routes all connections through the Tor network for enhanced privacy.',
       optional: true,
-      s9pk: null,
+      metadata: {
+        title: 'Tor',
+        icon: 'https://raw.githubusercontent.com/Start9Labs/tor-startos/65faea17febc739d910e8c26ff4e61f6333487a8/icon.svg',
+      },
     },
   },
 })

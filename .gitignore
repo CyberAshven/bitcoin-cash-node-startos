@@ -6,3 +6,5 @@ node_modules/
 docker-images
 javascript
 ncc-cachebitcoin-cash-node/
+start-os/
+startbox

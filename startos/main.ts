@@ -11,6 +11,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
    * ======================== Setup ========================
    */
 
+  console.log('Starting Bitcoin Cash Node!')
+
   // Read bitcoin.conf (watch for changes — restarts Bitcoin on change)
   const bitcoinConf = await bitcoinConfFile.read().const(effects)
 
@@ -89,6 +91,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
   })
 
   return sdk.Daemons.of(effects)
+    .addOneshot('nocow', {
+      subcontainer: bitcoindSub,
+      exec: {
+        command: ['chattr', '-R', '+C', rootDir],
+      },
+      requires: [],
+    })
     .addDaemon('primary', {
       subcontainer: bitcoindSub,
       exec: {
@@ -108,7 +117,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
           }
         },
       },
-      requires: [],
+      requires: ['nocow'],
     })
     .addHealthCheck('sync-progress', {
       ready: {
@@ -122,10 +131,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
               const pct = (info.verificationprogress * 100).toFixed(2)
               return { message: `Syncing blocks...${pct}%`, result: 'loading' }
             }
-            const currentStore = await storeJson.read().once()
-            if (!currentStore?.fullySynced) {
-              await storeJson.merge(effects, { fullySynced: true })
-            }
             return {
               message: `Synced — block ${info.blocks}${info.pruned ? ' (pruned)' : ''}`,
               result: 'success',
@@ -136,6 +141,19 @@ export const main = sdk.setupMain(async ({ effects }) => {
         },
       },
       requires: ['primary'],
+    })
+    .addOneshot('synced-true', {
+      subcontainer: null,
+      exec: {
+        fn: async () => {
+          const currentStore = await storeJson.read().once()
+          if (!currentStore?.fullySynced) {
+            await storeJson.merge(effects, { fullySynced: true })
+          }
+          return null
+        },
+      },
+      requires: ['sync-progress'],
     })
     .addHealthCheck('peer-connections', {
       ready: {

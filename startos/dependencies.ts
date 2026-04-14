@@ -2,8 +2,8 @@ import { sdk } from './sdk'
 import { bitcoinConfFile } from './fileModels/bitcoin.conf'
 
 export const setDependencies = sdk.setupDependencies(
-  async ({ effects: _effects }) => {
-    const conf = await bitcoinConfFile.read().once()
+  async ({ effects }) => {
+    const conf = await bitcoinConfFile.read().const(effects)
     const onlynetList: string[] = ((conf?.onlynet as unknown as string[]) ?? []).filter(Boolean)
     const rawConf = conf?.raw as Record<string, unknown> | undefined
     const rawExternalip = rawConf?.externalip
@@ -18,7 +18,7 @@ export const setDependencies = sdk.setupDependencies(
       return {
         tor: {
           kind: 'running' as const,
-          versionRange: '>=0.4.9.5:0-beta.4',
+          versionRange: '>=0.4.9.5:0',
           healthChecks: [] as string[],
         },
       }
