@@ -4,7 +4,7 @@ This package provides Bitcoin Cash Node (BCHN) v29.0.0 as a StartOS service, ena
 
 ## Installation
 
-1. **Download the Package**: Obtain the `bitcoin-cash-node.s9pk` file from the [releases page](https://github.com/CyberAshven/bitcoin-cash-node-startos/releases) or build it yourself from source.
+1. **Download the Package**: Obtain the `bitcoin-cash-node.s9pk` file from the [releases page](https://github.com/BitcoinCash1/bitcoin-cash-node-startos/releases) or build it yourself from source.
 
 2. **Install on StartOS**:
    - Navigate to your StartOS web interface
