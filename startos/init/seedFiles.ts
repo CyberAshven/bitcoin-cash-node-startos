@@ -26,6 +26,7 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
     txindex: false,
     zmqEnabled: false,
     network: 'mainnet',
+    flavor: 'bchn',
     initialized: true,
     reindexBlockchain: false,
     reindexChainstate: false,

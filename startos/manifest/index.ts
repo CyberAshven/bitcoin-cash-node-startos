@@ -21,6 +21,11 @@ export const manifest = setupManifest({
       arch: ['x86_64', 'aarch64'],
       emulateMissingAs: 'x86_64',
     },
+    knuth: {
+      source: { dockerBuild: { dockerfile: 'Dockerfile.knuth' } },
+      arch: ['x86_64'],
+      emulateMissingAs: 'x86_64',
+    },
   },
   alerts: {
     install:

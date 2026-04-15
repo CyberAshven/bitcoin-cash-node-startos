@@ -15,12 +15,15 @@ import { reindexBlockchain } from './reindexBlockchain'
 import { reindexChainstate } from './reindexChainstate'
 import { deletePeers } from './deletePeers'
 import { deleteTxIndex } from './deleteTxIndex'
+import { selectFlavor } from './flavor'
 
 export const actions = sdk.Actions.of()
   // ── Hidden (cross-package) ──────────────────────────────────────────────────
   .addAction(autoconfig)
   // ── Info ────────────────────────────────────────────────────────────────────
   .addAction(runtimeInfo)
+  // ── Implementation ──────────────────────────────────────────────────────────
+  .addAction(selectFlavor)
   // ── Configuration ───────────────────────────────────────────────────────────
   .addAction(networkConfig)
   .addAction(otherConfig)

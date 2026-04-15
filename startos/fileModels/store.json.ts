@@ -11,6 +11,7 @@ export const shape = z
     network: z
       .enum(['mainnet', 'testnet3', 'chipnet', 'regtest'])
       .catch('mainnet'),
+    flavor: z.enum(['bchn', 'knuth']).catch('bchn'),
     initialized: z.boolean().catch(false),
     reindexBlockchain: z.boolean().catch(false),
     reindexChainstate: z.boolean().catch(false),

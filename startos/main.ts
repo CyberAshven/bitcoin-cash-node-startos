@@ -11,18 +11,21 @@ export const main = sdk.setupMain(async ({ effects }) => {
    * ======================== Setup ========================
    */
 
-  console.log('Starting Bitcoin Cash Node!')
-
-  // Read bitcoin.conf (watch for changes — restarts Bitcoin on change)
+  // Read bitcoin.conf (watch for changes — restarts on change)
   const bitcoinConf = await bitcoinConfFile.read().const(effects)
 
-  // Read network and credentials from store
+  // Read network, credentials, and flavor from store
   const store = await storeJson.read().once()
   const network: Network = store?.network ?? 'mainnet'
   const rpcUser = store?.rpcUser ?? 'bitcoin-cash-node'
   const rpcPassword = store?.rpcPassword ?? ''
+  const flavor = store?.flavor ?? 'bchn'
   const { rpc: rpcPort } = networkPorts[network]
   const netFlag = networkFlag[network]
+
+  const isKnuth = flavor === 'knuth'
+
+  console.log(`Starting Bitcoin Cash Node (${isKnuth ? 'Knuth' : 'BCHN'})!`)
 
   // Read and clear reindex flags
   const reindexBlockchain = store?.reindexBlockchain ?? false
@@ -31,10 +34,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
     await storeJson.merge(effects, { reindexBlockchain: false, reindexChainstate: false })
   }
 
-  // Tor — get container IP (restarts Bitcoin if it changes)
+  // Tor — get container IP (restarts if it changes)
   const torIp = await sdk.getContainerIp(effects, { packageId: 'tor' }).const()
 
-  // Track Tor running status dynamically (no restart needed for status-only changes)
+  // Track Tor running status dynamically
   let torRunning = false
   if (torIp) {
     sdk.getStatus(effects, { packageId: 'tor' }).onChange((status) => {
@@ -52,8 +55,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
     ((bitcoinConf?.raw as Record<string, unknown> | undefined)?.externalip as
       (string | undefined)[] | undefined) ?? []
 
-  const bitcoinArgs: string[] = [
-    `-conf=${rootDir}/bitcoin.conf`,
+  // ── Build command args (shared between both implementations) ─────
+  const commonArgs: string[] = [
     `-datadir=${rootDir}`,
     `-rpcport=${rpcPort}`,
     ...(netFlag ? [netFlag] : []),
@@ -62,22 +65,58 @@ export const main = sdk.setupMain(async ({ effects }) => {
     ...(reindexChainstate ? ['-reindex-chainstate'] : []),
   ]
 
-  const bitcoindSub = await sdk.SubContainer.of(
+  // BCHN uses -conf for config files; Knuth uses command-line overrides
+  const daemonArgs: string[] = isKnuth
+    ? [
+        ...commonArgs,
+        `-conf=${rootDir}/bitcoin.conf`,
+        `-server`,
+        `-txindex`,
+        `-rpcuser=${rpcUser}`,
+        `-rpcpassword=${rpcPassword}`,
+        `-rpcallowip=0.0.0.0/0`,
+        `-rpcbind=0.0.0.0`,
+      ]
+    : [`-conf=${rootDir}/bitcoin.conf`, ...commonArgs]
+
+  const imageId = isKnuth ? 'knuth' : 'bitcoin-cash-node'
+  const daemonBin = isKnuth ? 'kth-node' : 'bitcoind'
+  const cliBin = isKnuth ? null : 'bitcoin-cli' // Knuth uses JSON-RPC via curl
+
+  const nodeSub = await sdk.SubContainer.of(
     effects,
-    { imageId: 'bitcoin-cash-node' },
+    { imageId },
     mainMounts,
-    'bitcoind-sub',
+    'node-sub',
   )
 
-  // Helper: run bitcoin-cli inside the container
-  async function cli(...args: string[]) {
-    return bitcoindSub.exec([
-      'bitcoin-cli',
-      `-rpcconnect=127.0.0.1`,
-      `-rpcport=${rpcPort}`,
-      `-rpcuser=${rpcUser}`,
-      `-rpcpassword=${rpcPassword}`,
-      ...args,
+  // Helper: run JSON-RPC call (works for both BCHN and Knuth)
+  async function rpcCall(method: string, ...params: unknown[]) {
+    if (cliBin) {
+      // BCHN: use bitcoin-cli
+      return nodeSub.exec([
+        cliBin,
+        `-rpcconnect=127.0.0.1`,
+        `-rpcport=${rpcPort}`,
+        `-rpcuser=${rpcUser}`,
+        `-rpcpassword=${rpcPassword}`,
+        method,
+        ...params.map(String),
+      ])
+    }
+    // Knuth: use curl for JSON-RPC
+    const body = JSON.stringify({
+      jsonrpc: '1.0',
+      id: 'sdk',
+      method,
+      params,
+    })
+    return nodeSub.exec([
+      'curl', '-sf', '--max-time', '5',
+      '-u', `${rpcUser}:${rpcPassword}`,
+      '-H', 'Content-Type: application/json',
+      '-d', body,
+      `http://127.0.0.1:${rpcPort}/`,
     ])
   }
 
@@ -96,14 +135,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
       exec: {
         fn: async () => {
           try {
-            // Ensure target exists before attempting to set NoCOW flags.
-            const mkdirRes = await bitcoindSub.exec(['mkdir', '-p', rootDir])
+            const mkdirRes = await nodeSub.exec(['mkdir', '-p', rootDir])
             if (mkdirRes.exitCode !== 0) {
               console.warn(`nocow: mkdir failed for ${rootDir}; continuing without chattr`)
               return null
             }
 
-            const chattrRes = await bitcoindSub.exec(['chattr', '-R', '+C', rootDir])
+            const chattrRes = await nodeSub.exec(['chattr', '-R', '+C', rootDir])
             if (chattrRes.exitCode !== 0) {
               console.warn(`nocow: chattr not applied for ${rootDir}; continuing startup`)
             }
@@ -116,21 +154,21 @@ export const main = sdk.setupMain(async ({ effects }) => {
       requires: [],
     })
     .addDaemon('primary', {
-      subcontainer: bitcoindSub,
+      subcontainer: nodeSub,
       exec: {
-        command: ['bitcoind', ...bitcoinArgs],
+        command: [daemonBin, ...daemonArgs],
         sigtermTimeout: 300_000,
       },
       ready: {
         display: 'RPC',
         fn: async () => {
           try {
-            const res = await cli('getrpcinfo')
+            const res = await rpcCall('getrpcinfo')
             return res.exitCode === 0
-              ? { message: 'The Bitcoin Cash Node RPC Interface is ready', result: 'success' }
-              : { message: 'The Bitcoin Cash Node RPC Interface is not ready', result: 'starting' }
+              ? { message: `The ${isKnuth ? 'Knuth' : 'BCHN'} RPC Interface is ready`, result: 'success' }
+              : { message: `The ${isKnuth ? 'Knuth' : 'BCHN'} RPC Interface is not ready`, result: 'starting' }
           } catch {
-            return { message: 'The Bitcoin Cash Node RPC Interface is not ready', result: 'starting' }
+            return { message: `The ${isKnuth ? 'Knuth' : 'BCHN'} RPC Interface is not ready`, result: 'starting' }
           }
         },
       },
@@ -141,9 +179,12 @@ export const main = sdk.setupMain(async ({ effects }) => {
         display: 'Blockchain Sync',
         fn: async () => {
           try {
-            const res = await cli('getblockchaininfo')
+            const res = await rpcCall('getblockchaininfo')
             if (res.exitCode !== 0) return { message: 'Waiting for sync info', result: 'loading' }
-            const info: GetBlockchainInfo = JSON.parse(res.stdout.toString())
+            const stdout = res.stdout.toString()
+            // Knuth curl returns JSON-RPC envelope; BCHN bitcoin-cli returns raw result
+            const parsed = cliBin ? JSON.parse(stdout) : JSON.parse(stdout).result
+            const info: GetBlockchainInfo = parsed
             if (info.initialblockdownload) {
               const pct = (info.verificationprogress * 100).toFixed(2)
               return { message: `Syncing blocks...${pct}%`, result: 'loading' }
@@ -177,9 +218,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
         display: 'Peer Connections',
         fn: async () => {
           try {
-            const res = await cli('getpeerinfo')
+            const res = await rpcCall('getpeerinfo')
             if (res.exitCode !== 0) return { message: 'Unable to query peers', result: 'loading' }
-            const peers: GetPeerInfo = JSON.parse(res.stdout.toString())
+            const stdout = res.stdout.toString()
+            const peers: GetPeerInfo = cliBin ? JSON.parse(stdout) : JSON.parse(stdout).result
             const count = peers.length
             if (count === 0) return { message: 'No peers connected — node may be starting up or isolated', result: 'loading' }
             if (count < 3) return { message: `Only ${count} peer(s) connected — network connectivity may be limited`, result: 'loading' }
