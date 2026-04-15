@@ -3,7 +3,6 @@ import { sdk } from '../sdk'
 
 export const shape = z
   .object({
-    flavor: z.enum(['bchn', 'knuth']).catch('bchn'),
     rpcUser: z.string().catch('bitcoin-cash-node'),
     rpcPassword: z.string().catch(''),
     txindex: z.boolean().catch(false),
