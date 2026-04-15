@@ -1,4 +1,5 @@
 import { sdk } from './sdk'
+import { FLAVOR, IMAGE_ID, DAEMON_BIN, CLI_BIN, FLAVOR_LABEL } from './flavor'
 import { rootDir, networkPorts, networkFlag, Network, GetBlockchainInfo, GetPeerInfo } from './utils'
 import { bitcoinConfFile } from './fileModels/bitcoin.conf'
 import { storeJson } from './fileModels/store.json'
@@ -11,9 +12,15 @@ export const main = sdk.setupMain(async ({ effects }) => {
    * ======================== Setup ========================
    */
 
-  console.log('Starting Bitcoin Cash Node!')
+  const flavor = FLAVOR
+  const imageId = IMAGE_ID[flavor]
+  const daemonBin = DAEMON_BIN[flavor]
+  const cliBin = CLI_BIN[flavor]
+  const label = FLAVOR_LABEL[flavor]
 
-  // Read bitcoin.conf (watch for changes — restarts Bitcoin on change)
+  console.log(`Starting ${label}! (flavor: ${flavor})`)
+
+  // Read bitcoin.conf (watch for changes — restarts node on change)
   const bitcoinConf = await bitcoinConfFile.read().const(effects)
 
   // Read network and credentials from store
@@ -64,15 +71,15 @@ export const main = sdk.setupMain(async ({ effects }) => {
 
   const bitcoindSub = await sdk.SubContainer.of(
     effects,
-    { imageId: 'bitcoin-cash-node' },
+    { imageId },
     mainMounts,
     'bitcoind-sub',
   )
 
-  // Helper: run bitcoin-cli inside the container
+  // Helper: run CLI inside the container
   async function cli(...args: string[]) {
     return bitcoindSub.exec([
-      'bitcoin-cli',
+      cliBin,
       `-rpcconnect=127.0.0.1`,
       `-rpcport=${rpcPort}`,
       `-rpcuser=${rpcUser}`,
@@ -118,7 +125,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
     .addDaemon('primary', {
       subcontainer: bitcoindSub,
       exec: {
-        command: ['bitcoind', ...bitcoinArgs],
+        command: [daemonBin, ...bitcoinArgs],
         sigtermTimeout: 300_000,
       },
       ready: {
@@ -127,10 +134,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
           try {
             const res = await cli('getrpcinfo')
             return res.exitCode === 0
-              ? { message: 'The Bitcoin Cash Node RPC Interface is ready', result: 'success' }
-              : { message: 'The Bitcoin Cash Node RPC Interface is not ready', result: 'starting' }
+              ? { message: `${label} RPC Interface is ready`, result: 'success' }
+              : { message: `${label} RPC Interface is not ready`, result: 'starting' }
           } catch {
-            return { message: 'The Bitcoin Cash Node RPC Interface is not ready', result: 'starting' }
+            return { message: `${label} RPC Interface is not ready`, result: 'starting' }
           }
         },
       },

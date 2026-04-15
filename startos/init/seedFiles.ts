@@ -1,5 +1,6 @@
 import { totalmem } from 'os'
 import { sdk } from '../sdk'
+import { FLAVOR } from '../flavor'
 import { storeJson } from '../fileModels/store.json'
 import { bitcoinConfFile } from '../fileModels/bitcoin.conf'
 
@@ -21,6 +22,7 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
   const dbcache = Math.min(Math.floor((totalmem() * 0.25) / (1024 * 1024)), 5120)
 
   await storeJson.merge(effects, {
+    flavor: FLAVOR,
     rpcUser: 'bitcoin-cash-node',
     rpcPassword,
     txindex: false,
