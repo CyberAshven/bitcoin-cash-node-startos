@@ -2,7 +2,7 @@ import { setupManifest } from '@start9labs/start-sdk'
 import { long, short } from './i18n'
 
 export const manifest = setupManifest({
-  id: 'bitcoin-cash-node',
+  id: 'bitcoincashd',
   title: 'Bitcoin Cash Node',
   license: 'MIT',
   packageRepo: 'https://github.com/BitcoinCash1/bitcoin-cash-node-startos',
@@ -19,11 +19,6 @@ export const manifest = setupManifest({
     'bitcoin-cash-node': {
       source: { dockerTag: 'mainnet/bitcoin-cash-node:v29.0.0' },
       arch: ['x86_64', 'aarch64'],
-      emulateMissingAs: 'x86_64',
-    },
-    knuth: {
-      source: { dockerBuild: { dockerfile: 'Dockerfile.knuth' } },
-      arch: ['x86_64'],
       emulateMissingAs: 'x86_64',
     },
   },

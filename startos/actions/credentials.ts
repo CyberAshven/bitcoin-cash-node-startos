@@ -47,7 +47,7 @@ export const viewCredentials = sdk.Action.withInput(
     const store = await storeJson.read().once()
     const network: Network = store?.network ?? 'mainnet'
     return {
-      rpcUser: store?.rpcUser ?? 'bitcoin-cash-node',
+      rpcUser: store?.rpcUser ?? 'bitcoincashd',
       rpcPassword: store?.rpcPassword ?? '',
       rpcPort: networkPorts[network].rpc,
     }

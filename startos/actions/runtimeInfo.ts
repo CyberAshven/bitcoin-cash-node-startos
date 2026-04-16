@@ -16,7 +16,7 @@ export const runtimeInfo = sdk.Action.withoutInput(
   async ({ effects }) => {
     const store = await storeJson.read().once()
     const network: Network = store?.network ?? 'mainnet'
-    const rpcUser = store?.rpcUser ?? 'bitcoin-cash-node'
+    const rpcUser = store?.rpcUser ?? 'bitcoincashd'
     const rpcPassword = store?.rpcPassword ?? ''
     const { rpc: rpcPort } = networkPorts[network]
 

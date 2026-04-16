@@ -14,18 +14,15 @@ export const main = sdk.setupMain(async ({ effects }) => {
   // Read bitcoin.conf (watch for changes — restarts on change)
   const bitcoinConf = await bitcoinConfFile.read().const(effects)
 
-  // Read network, credentials, and flavor from store
+  // Read network and credentials from store
   const store = await storeJson.read().once()
   const network: Network = store?.network ?? 'mainnet'
-  const rpcUser = store?.rpcUser ?? 'bitcoin-cash-node'
+  const rpcUser = store?.rpcUser ?? 'bitcoincashd'
   const rpcPassword = store?.rpcPassword ?? ''
-  const flavor = store?.flavor ?? 'bchn'
   const { rpc: rpcPort } = networkPorts[network]
   const netFlag = networkFlag[network]
 
-  const isKnuth = flavor === 'knuth'
-
-  console.log(`Starting Bitcoin Cash Node (${isKnuth ? 'Knuth' : 'BCHN'})!`)
+  console.log('Starting Bitcoin Cash Node (BCHN)!')
 
   // Read and clear reindex flags
   const reindexBlockchain = store?.reindexBlockchain ?? false
@@ -55,8 +52,9 @@ export const main = sdk.setupMain(async ({ effects }) => {
     ((bitcoinConf?.raw as Record<string, unknown> | undefined)?.externalip as
       (string | undefined)[] | undefined) ?? []
 
-  // ── Build command args (shared between both implementations) ─────
-  const commonArgs: string[] = [
+  // ── Build command args ─────
+  const daemonArgs: string[] = [
+    `-conf=${rootDir}/bitcoin.conf`,
     `-datadir=${rootDir}`,
     `-rpcport=${rpcPort}`,
     ...(netFlag ? [netFlag] : []),
@@ -65,58 +63,23 @@ export const main = sdk.setupMain(async ({ effects }) => {
     ...(reindexChainstate ? ['-reindex-chainstate'] : []),
   ]
 
-  // BCHN uses -conf for config files; Knuth uses command-line overrides
-  const daemonArgs: string[] = isKnuth
-    ? [
-        ...commonArgs,
-        `-conf=${rootDir}/bitcoin.conf`,
-        `-server`,
-        `-txindex`,
-        `-rpcuser=${rpcUser}`,
-        `-rpcpassword=${rpcPassword}`,
-        `-rpcallowip=0.0.0.0/0`,
-        `-rpcbind=0.0.0.0`,
-      ]
-    : [`-conf=${rootDir}/bitcoin.conf`, ...commonArgs]
-
-  const imageId = isKnuth ? 'knuth' : 'bitcoin-cash-node'
-  const daemonBin = isKnuth ? 'kth-node' : 'bitcoind'
-  const cliBin = isKnuth ? null : 'bitcoin-cli' // Knuth uses JSON-RPC via curl
-
   const nodeSub = await sdk.SubContainer.of(
     effects,
-    { imageId },
+    { imageId: 'bitcoin-cash-node' },
     mainMounts,
     'node-sub',
   )
 
-  // Helper: run JSON-RPC call (works for both BCHN and Knuth)
+  // Helper: run JSON-RPC call via bitcoin-cli
   async function rpcCall(method: string, ...params: unknown[]) {
-    if (cliBin) {
-      // BCHN: use bitcoin-cli
-      return nodeSub.exec([
-        cliBin,
-        `-rpcconnect=127.0.0.1`,
-        `-rpcport=${rpcPort}`,
-        `-rpcuser=${rpcUser}`,
-        `-rpcpassword=${rpcPassword}`,
-        method,
-        ...params.map(String),
-      ])
-    }
-    // Knuth: use curl for JSON-RPC
-    const body = JSON.stringify({
-      jsonrpc: '1.0',
-      id: 'sdk',
-      method,
-      params,
-    })
     return nodeSub.exec([
-      'curl', '-sf', '--max-time', '5',
-      '-u', `${rpcUser}:${rpcPassword}`,
-      '-H', 'Content-Type: application/json',
-      '-d', body,
-      `http://127.0.0.1:${rpcPort}/`,
+      'bitcoin-cli',
+      `-rpcconnect=127.0.0.1`,
+      `-rpcport=${rpcPort}`,
+      `-rpcuser=${rpcUser}`,
+      `-rpcpassword=${rpcPassword}`,
+      method,
+      ...params.map(String),
     ])
   }
 
@@ -156,7 +119,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
     .addDaemon('primary', {
       subcontainer: nodeSub,
       exec: {
-        command: [daemonBin, ...daemonArgs],
+        command: ['bitcoind', ...daemonArgs],
         sigtermTimeout: 300_000,
       },
       ready: {
@@ -165,10 +128,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
           try {
             const res = await rpcCall('getrpcinfo')
             return res.exitCode === 0
-              ? { message: `The ${isKnuth ? 'Knuth' : 'BCHN'} RPC Interface is ready`, result: 'success' }
-              : { message: `The ${isKnuth ? 'Knuth' : 'BCHN'} RPC Interface is not ready`, result: 'starting' }
+              ? { message: 'The BCHN RPC Interface is ready', result: 'success' }
+              : { message: 'The BCHN RPC Interface is not ready', result: 'starting' }
           } catch {
-            return { message: `The ${isKnuth ? 'Knuth' : 'BCHN'} RPC Interface is not ready`, result: 'starting' }
+            return { message: 'The BCHN RPC Interface is not ready', result: 'starting' }
           }
         },
       },
@@ -182,9 +145,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
             const res = await rpcCall('getblockchaininfo')
             if (res.exitCode !== 0) return { message: 'Waiting for sync info', result: 'loading' }
             const stdout = res.stdout.toString()
-            // Knuth curl returns JSON-RPC envelope; BCHN bitcoin-cli returns raw result
-            const parsed = cliBin ? JSON.parse(stdout) : JSON.parse(stdout).result
-            const info: GetBlockchainInfo = parsed
+            const info: GetBlockchainInfo = JSON.parse(stdout)
             if (info.initialblockdownload) {
               const pct = (info.verificationprogress * 100).toFixed(2)
               return { message: `Syncing blocks...${pct}%`, result: 'loading' }
@@ -221,7 +182,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
             const res = await rpcCall('getpeerinfo')
             if (res.exitCode !== 0) return { message: 'Unable to query peers', result: 'loading' }
             const stdout = res.stdout.toString()
-            const peers: GetPeerInfo = cliBin ? JSON.parse(stdout) : JSON.parse(stdout).result
+            const peers: GetPeerInfo = JSON.parse(stdout)
             const count = peers.length
             if (count === 0) return { message: 'No peers connected — node may be starting up or isolated', result: 'loading' }
             if (count < 3) return { message: `Only ${count} peer(s) connected — network connectivity may be limited`, result: 'loading' }

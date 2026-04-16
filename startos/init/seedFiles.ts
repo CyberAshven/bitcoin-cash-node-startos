@@ -21,12 +21,11 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
   const dbcache = Math.min(Math.floor((totalmem() * 0.25) / (1024 * 1024)), 5120)
 
   await storeJson.merge(effects, {
-    rpcUser: 'bitcoin-cash-node',
+    rpcUser: 'bitcoincashd',
     rpcPassword,
     txindex: false,
     zmqEnabled: false,
     network: 'mainnet',
-    flavor: 'bchn',
     initialized: true,
     reindexBlockchain: false,
     reindexChainstate: false,
@@ -35,7 +34,7 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
 
   await bitcoinConfFile.merge(effects, {
     raw: {
-      rpcuser: 'bitcoin-cash-node',
+      rpcuser: 'bitcoincashd',
       rpcpassword: rpcPassword,
     },
     zmqEnabled: false,
