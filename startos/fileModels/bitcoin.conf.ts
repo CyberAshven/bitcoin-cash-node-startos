@@ -157,8 +157,8 @@ export const fullConfigSpec = InputSpec.of({
   peerbloomfilters: Value.toggle({
     name: 'Serve Bloom Filters',
     description:
-      'Serve BIP37 bloom filters to peers. Required by some older SPV wallets. Disabled by default for bandwidth reasons.',
-    default: false,
+      'Serve BIP37 bloom filters to peers. Useful for SPV wallets but can be a DoS vector on public-facing nodes.',
+    default: true,
   }),
   onlynet: Value.multiselect({
     name: 'Allowed Networks',
