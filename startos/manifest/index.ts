@@ -3,7 +3,7 @@ import { long, short } from './i18n'
 
 export const manifest = setupManifest({
   id: 'bitcoincashd',
-  title: 'Bitcoin Cash Node',
+  title: 'Bitcoin Cash Node (BCHN)',
   license: 'MIT',
   packageRepo: 'https://github.com/BitcoinCash1/bitcoin-cash-node-startos',
   upstreamRepo: 'https://gitlab.com/bitcoin-cash-node/bitcoin-cash-node',
