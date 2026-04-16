@@ -236,7 +236,7 @@ export const fullConfigSpec = InputSpec.of({
     description:
       'Limit blockchain storage (MB). 0 = disabled. Min 550 MB when enabled. Incompatible with txindex.',
     required: false,
-    default: null,
+    default: 0,
     min: 0,
     max: null,
     integer: true,
