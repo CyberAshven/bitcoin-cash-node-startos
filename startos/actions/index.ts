@@ -1,11 +1,8 @@
 import { sdk } from '../sdk'
 import { autoconfig } from './config/autoconfig'
 import { otherConfig } from './config/other'
-import { rpcConfig } from './config/rpc'
 import { networkConfig } from './config/network'
-import { pruningConfig } from './config/pruning'
 import { mempoolConfig } from './config/mempool'
-import { blockPolicyConfig } from './config/blockpolicy'
 import { peersConfig } from './config/peers'
 import { viewCredentials } from './credentials'
 import { generateRpcUser } from './generateRpcUser'
@@ -25,10 +22,7 @@ export const actions = sdk.Actions.of()
   .addAction(networkConfig)
   .addAction(otherConfig)
   .addAction(peersConfig)
-  .addAction(rpcConfig)
   .addAction(mempoolConfig)
-  .addAction(pruningConfig)
-  .addAction(blockPolicyConfig)
   // ── Credentials ─────────────────────────────────────────────────────────────
   .addAction(viewCredentials)
   .addAction(generateRpcUser)

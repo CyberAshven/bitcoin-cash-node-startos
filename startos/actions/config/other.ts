@@ -5,7 +5,7 @@ export const otherConfig = sdk.Action.withInput(
   'other-config',
   async ({ effects: _effects }) => ({
     name: 'Node Settings',
-    description: 'Indexes, ZeroMQ, mempool persistence, performance cache, and advanced options.',
+    description: 'Indexes, pruning, ZeroMQ, mempool persistence, performance cache, and advanced options.',
     warning: null,
     allowedStatuses: 'any' as const,
     group: 'Configuration',
@@ -13,6 +13,7 @@ export const otherConfig = sdk.Action.withInput(
   }),
   fullConfigSpec.filter({
     txindex: true,
+    prune: true,
     zmqEnabled: true,
     persistmempool: true,
     dbcache: true,
@@ -22,6 +23,11 @@ export const otherConfig = sdk.Action.withInput(
   }),
   async ({ effects: _effects }) => bitcoinConfFile.read().once(),
   async ({ effects, input }) => {
-    await bitcoinConfFile.merge(effects, input)
+    // If pruning is enabled, also clear txindex to avoid incompatibility
+    if (input.prune && input.prune > 0) {
+      await bitcoinConfFile.merge(effects, { ...input, txindex: false })
+    } else {
+      await bitcoinConfFile.merge(effects, input)
+    }
   },
 )

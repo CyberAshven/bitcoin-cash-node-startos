@@ -110,6 +110,19 @@ export const fullConfigSpec = InputSpec.of({
       'Build a full transaction index. Required for Fulcrum and other indexers. Cannot be enabled with pruning.',
     default: true,
   }),
+  prune: Value.number({
+    name: 'Prune Target',
+    description:
+      'Limit blockchain storage (MB). 0 = disabled. Min 550 MB when enabled. Incompatible with txindex.',
+    required: false,
+    default: 0,
+    min: 0,
+    max: null,
+    integer: true,
+    units: 'MB',
+    placeholder: '0 (disabled)',
+    warning: 'Enabling pruning disables the transaction index.',
+  }),
   persistmempool: Value.toggle({
     name: 'Persist Mempool',
     description:
@@ -141,58 +154,6 @@ export const fullConfigSpec = InputSpec.of({
     integer: true,
     units: 'bytes',
     placeholder: '16777216',
-  }),
-
-  // ── Peer Connections ───────────────────────────────────────────────────────
-  maxconnections: Value.number({
-    name: 'Maximum Connections',
-    description: 'Maximum number of peer connections.',
-    default: 125,
-    required: false,
-    min: 8,
-    max: 1000,
-    integer: true,
-    placeholder: '125',
-  }),
-  peerbloomfilters: Value.toggle({
-    name: 'Serve Bloom Filters',
-    description:
-      'Serve BIP37 bloom filters to peers. Useful for SPV wallets but can be a DoS vector on public-facing nodes.',
-    default: true,
-  }),
-  onlynet: Value.multiselect({
-    name: 'Allowed Networks',
-    description:
-      'Restrict peer connections to specific network types. Uncheck a network to exclude it. All checked = allow all (default).',
-    default: ALL_ONLYNETS,
-    values: ONLYNET_VALUES,
-  }),
-  addnode: Value.list(
-    List.text(
-      {
-        name: 'Add Peers',
-        description:
-          'Manually add specific peers by address (ip:port or hostname:port). The node will always maintain connections to these peers.',
-        default: [],
-        minLength: null,
-        maxLength: null,
-      },
-      {
-        masked: false,
-        placeholder: '192.168.1.10:8333',
-      },
-    ),
-  ),
-  maxuploadtarget: Value.number({
-    name: 'Max Upload Target',
-    description: 'Limit total outbound bandwidth per 24 hours. 0 = unlimited.',
-    required: false,
-    default: null,
-    min: 0,
-    max: null,
-    integer: true,
-    units: 'MB/day',
-    placeholder: '0 (unlimited)',
   }),
 
   // ── RPC ───────────────────────────────────────────────────────────────────
@@ -230,20 +191,57 @@ export const fullConfigSpec = InputSpec.of({
     placeholder: '64',
   }),
 
-  // ── Pruning ───────────────────────────────────────────────────────────────
-  prune: Value.number({
-    name: 'Prune Target',
-    description:
-      'Limit blockchain storage (MB). 0 = disabled. Min 550 MB when enabled. Incompatible with txindex.',
+  // ── Peer Connections ───────────────────────────────────────────────────────
+  maxconnections: Value.number({
+    name: 'Maximum Connections',
+    description: 'Maximum number of peer connections.',
+    default: 125,
     required: false,
-    default: 0,
+    min: 8,
+    max: 1000,
+    integer: true,
+    placeholder: '125',
+  }),
+  maxuploadtarget: Value.number({
+    name: 'Max Upload Target',
+    description: 'Limit total outbound bandwidth per 24 hours. 0 = unlimited.',
+    required: false,
+    default: null,
     min: 0,
     max: null,
     integer: true,
-    units: 'MB',
-    placeholder: '0 (disabled)',
-    warning: 'Enabling pruning disables the transaction index.',
+    units: 'MB/day',
+    placeholder: '0 (unlimited)',
   }),
+  peerbloomfilters: Value.toggle({
+    name: 'Serve Bloom Filters (BIP37)',
+    description:
+      'Serve BIP37 bloom filters to peers. Useful for SPV wallets but can be a DoS vector on public-facing nodes.',
+    default: true,
+  }),
+  onlynet: Value.multiselect({
+    name: 'Allowed Networks',
+    description:
+      'Restrict peer connections to specific network types. Uncheck a network to exclude it. All checked = allow all (default).',
+    default: ALL_ONLYNETS,
+    values: ONLYNET_VALUES,
+  }),
+  addnode: Value.list(
+    List.text(
+      {
+        name: 'Add Peers',
+        description:
+          'Manually add specific peers by address (ip:port or hostname:port). The node will always maintain connections to these peers.',
+        default: [],
+        minLength: null,
+        maxLength: null,
+      },
+      {
+        masked: false,
+        placeholder: '192.168.1.10:8333',
+      },
+    ),
+  ),
 
   // ── Mempool & Relay ───────────────────────────────────────────────────────
   maxmempool: Value.number({
