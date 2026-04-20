@@ -19,6 +19,7 @@ export const peersConfig = sdk.Action.withInput(
     maxuploadtarget: true,
     peerbloomfilters: true,
     onlynet: true,
+    onionOnly: true,
     addnode: true,
   }),
   async ({ effects: _effects }) => bitcoinConfFile.read().once(),

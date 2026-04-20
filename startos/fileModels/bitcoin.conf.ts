@@ -226,6 +226,12 @@ export const fullConfigSpec = InputSpec.of({
     default: ALL_ONLYNETS,
     values: ONLYNET_VALUES,
   }),
+  onionOnly: Value.toggle({
+    name: 'Onion-Only Mode',
+    description:
+      'Force peer connections to Tor only (equivalent to onlynet=onion). Disabled by default so clearnet and Tor can coexist.',
+    default: false,
+  }),
   addnode: Value.list(
     List.text(
       {
@@ -358,6 +364,7 @@ function fileToForm(
   // When no onlynet is written in conf, all networks are allowed — show all checked
   const onlynetFromConf = onlynet?.filter((v): v is string => !!v) ?? []
   const onlynetForm = onlynetFromConf.length === 0 ? ALL_ONLYNETS : onlynetFromConf as OnlynetKey[]
+  const onionOnly = onlynetFromConf.length > 0 && onlynetFromConf.every((n) => n === 'onion')
 
   return {
     raw: input ?? {},
@@ -365,6 +372,7 @@ function fileToForm(
     txindex, persistmempool,
     maxconnections, peerbloomfilters,
     onlynet: onlynetForm,
+    onionOnly,
     addnode: addnode?.filter((v): v is string => !!v) ?? [],
     maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
@@ -382,7 +390,7 @@ function formToFile(
 ): z.infer<typeof shape> {
   const {
     raw, zmqEnabled, txindex, persistmempool,
-    maxconnections, peerbloomfilters, onlynet, addnode, maxuploadtarget,
+    maxconnections, peerbloomfilters, onlynet, onionOnly, addnode, maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
     excessiveblocksize, limitancestorcount, limitdescendantcount,
@@ -393,7 +401,9 @@ function formToFile(
   // If all networks selected (or none specified), don't write onlynet (means allow all)
   const onlynetList = (onlynet as string[] | undefined)?.filter(Boolean) ?? []
   const allSelected = ALL_ONLYNETS.every((n) => onlynetList.includes(n))
-  const writeOnlynet = onlynetList.length > 0 && !allSelected ? onlynetList : undefined
+  const writeOnlynet = onionOnly
+    ? ['onion']
+    : (onlynetList.length > 0 && !allSelected ? onlynetList : undefined)
 
   return {
     ...raw,
