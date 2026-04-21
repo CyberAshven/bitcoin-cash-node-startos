@@ -12,6 +12,7 @@ import { reindexBlockchain } from './reindexBlockchain'
 import { reindexChainstate } from './reindexChainstate'
 import { deletePeers } from './deletePeers'
 import { deleteTxIndex } from './deleteTxIndex'
+import { deleteTestNetworkData } from './deleteTestNetworkData'
 
 export const actions = sdk.Actions.of()
   // ── Hidden (cross-package) ──────────────────────────────────────────────────
@@ -32,3 +33,4 @@ export const actions = sdk.Actions.of()
   .addAction(reindexChainstate)
   .addAction(deletePeers)
   .addAction(deleteTxIndex)
+  .addAction(deleteTestNetworkData)
