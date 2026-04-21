@@ -36,7 +36,7 @@ export const deleteTestNetworkData = sdk.Action.withInput(
       'Delete blockchain data for one or more test networks (Chipnet, Regtest). This frees disk space without touching mainnet.',
     warning:
       'All block data and chainstate for the selected networks will be permanently deleted. Mainnet is never affected.',
-    allowedStatuses: 'only-stopped' as const,
+    allowedStatuses: 'any' as const,
     group: 'Maintenance',
     visibility: 'enabled' as const,
   }),

@@ -16,6 +16,11 @@ export const reindexBlockchain = sdk.Action.withoutInput(
   async ({ effects }) => {
     await storeJson.merge(effects, { reindexBlockchain: true, fullySynced: false })
     await effects.restart()
-    return null
+    return {
+      version: '1' as const,
+      title: 'Reindex Queued',
+      message: 'The node is restarting and will reindex all blocks from genesis. This can take many hours — do not interrupt.',
+      result: null,
+    }
   },
 )
