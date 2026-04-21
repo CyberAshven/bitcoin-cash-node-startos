@@ -36,8 +36,8 @@ export const shape = z
   .object({
     server: z.literal(true).catch(true),
     listen: z.literal(true).catch(true),
-    rpcbind: z.string().catch('0.0.0.0'),
-    rpcallowip: z.string().catch('0.0.0.0/0'),
+    rpcbind: z.string().optional().catch(undefined),
+    rpcallowip: z.string().optional().catch(undefined),
     rpcuser: iniString,
     rpcpassword: iniString,
     rpcauth: iniStringArray,
@@ -405,12 +405,15 @@ function formToFile(
     ? ['onion']
     : (onlynetList.length > 0 && !allSelected ? onlynetList : undefined)
 
+  // Strip rpcbind/rpcallowip from the config file — BCHN rejects them at the
+  // top level when running on chipnet/regtest ("must be in [chip] section").
+  // They are passed via command-line args in main.ts instead.
+  const { rpcbind: _rb, rpcallowip: _ra, ...rawRest } = (raw ?? {}) as Record<string, unknown>
+
   return {
-    ...raw,
+    ...rawRest,
     server: true,
     listen: true,
-    rpcbind: '0.0.0.0',
-    rpcallowip: '0.0.0.0/0',
     rpcuser: raw?.rpcuser,
     rpcpassword: raw?.rpcpassword,
     rpcauth: raw?.rpcauth?.filter((v): v is string => typeof v === 'string'),

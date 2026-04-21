@@ -11,6 +11,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
    * ======================== Setup ========================
    */
 
+  // Re-write bitcoin.conf on every startup to strip any legacy top-level
+  // rpcbind/rpcallowip entries (BCHN rejects those when running chipnet/regtest).
+  // They are passed as CLI args below instead.
+  await bitcoinConfFile.merge(effects, {})
+
   // Read bitcoin.conf (watch for changes — restarts on change)
   const bitcoinConf = await bitcoinConfFile.read().const(effects)
 
@@ -57,6 +62,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
     `-conf=${rootDir}/bitcoin.conf`,
     `-datadir=${rootDir}`,
     `-rpcport=${rpcPort}`,
+    '-rpcbind=0.0.0.0',
+    '-rpcallowip=0.0.0.0/0',
     ...(netFlag ? [netFlag] : []),
     ...(torIp ? [`-onion=${torIp}:9050`] : []),
     ...(reindexBlockchain ? ['-reindex'] : []),
