@@ -1,5 +1,7 @@
+import { TOML } from '@start9labs/start-sdk'
+import { writeFile } from 'fs/promises'
 import { sdk } from './sdk'
-import { rootDir, networkPorts, networkFlag, Network, GetBlockchainInfo, GetPeerInfo } from './utils'
+import { rootDir, networkPorts, networkRpcPortPruned, networkFlag, Network, GetBlockchainInfo, GetPeerInfo } from './utils'
 import { bitcoinConfFile } from './fileModels/bitcoin.conf'
 import { storeJson } from './fileModels/store.json'
 import { mainMounts } from './mounts'
@@ -25,6 +27,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const rpcUser = store?.rpcUser ?? 'bitcoincashd'
   const rpcPassword = store?.rpcPassword ?? ''
   const { rpc: rpcPort } = networkPorts[network]
+  const rpcPortPruned = networkRpcPortPruned[network]
   const netFlag = networkFlag[network]
 
   console.log('Starting Bitcoin Cash Node (BCHN)!')
@@ -56,13 +59,19 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const externalip: (string | undefined)[] =
     ((bitcoinConf?.raw as Record<string, unknown> | undefined)?.externalip as
       (string | undefined)[] | undefined) ?? []
+  // The btc-rpc-proxy sidecar always binds the public rpc port and forwards
+  // calls to bitcoind on a local-only internal port. When pruning is enabled
+  // it additionally fetches missing blocks over P2P so dependent services see
+  // a full-node RPC surface; when unpruned it simply passes requests through.
+  const internalRpcPort = rpcPortPruned
+  const rpcBindAddr = '127.0.0.1'
 
   // ── Build command args ─────
   const daemonArgs: string[] = [
     `-conf=${rootDir}/bitcoin.conf`,
     `-datadir=${rootDir}`,
-    `-rpcport=${rpcPort}`,
-    '-rpcbind=0.0.0.0',
+    `-rpcport=${internalRpcPort}`,
+    `-rpcbind=${rpcBindAddr}`,
     '-rpcallowip=0.0.0.0/0',
     ...(netFlag ? [netFlag] : []),
     ...(torIp ? [`-onion=${torIp}:9050`] : []),
@@ -77,12 +86,12 @@ export const main = sdk.setupMain(async ({ effects }) => {
     'node-sub',
   )
 
-  // Helper: run JSON-RPC call via bitcoin-cli
+  // Helper: run JSON-RPC call via bitcoin-cli (always against the internal port)
   async function rpcCall(method: string, ...params: unknown[]) {
     return nodeSub.exec([
       'bitcoin-cli',
       `-rpcconnect=127.0.0.1`,
-      `-rpcport=${rpcPort}`,
+      `-rpcport=${internalRpcPort}`,
       `-rpcuser=${rpcUser}`,
       `-rpcpassword=${rpcPassword}`,
       method,
@@ -135,7 +144,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
           try {
             const res = await rpcCall('getrpcinfo')
             return res.exitCode === 0
-              ? { message: 'The BCHN RPC Interface is ready', result: 'success' }
+              ? { message: 'BCHN RPC Interface is ready', result: 'success' }
               : { message: 'The BCHN RPC Interface is not ready', result: 'starting' }
           } catch {
             return { message: 'The BCHN RPC Interface is not ready', result: 'starting' }
@@ -219,6 +228,16 @@ export const main = sdk.setupMain(async ({ effects }) => {
       },
       requires: [],
     })
+    .addHealthCheck('i2p', {
+      ready: {
+        display: 'I2P',
+        fn: () => ({
+          result: 'disabled' as const,
+          message: 'I2P support is not implemented yet.',
+        }),
+      },
+      requires: [],
+    })
     .addHealthCheck('clearnet', {
       ready: {
         display: 'Clearnet',
@@ -234,5 +253,60 @@ export const main = sdk.setupMain(async ({ effects }) => {
         },
       },
       requires: [],
+    })
+    // RPC proxy sidecar (active only when pruning is enabled). Accepts public
+    // RPC on rpcPort and forwards to bitcoind on internalRpcPort, transparently
+    // fetching pruned blocks from peers when a dependent service requests them.
+    .addDaemon('proxy', async () => {
+      const subcontainer = await sdk.SubContainer.of(
+        effects,
+        { imageId: 'proxy' },
+        mainMounts,
+        'proxy-sub',
+      )
+
+      await writeFile(
+        `${subcontainer.rootfs}/config.toml`,
+        TOML.stringify({
+          bitcoind_address: '127.0.0.1',
+          bitcoind_port: internalRpcPort,
+          bitcoind_user: rpcUser,
+          bitcoind_password: rpcPassword,
+          bind_address: '0.0.0.0',
+          bind_port: rpcPort,
+          user: {
+            [rpcUser]: {
+              password: rpcPassword,
+              allowed_calls: ['*'],
+            },
+          },
+          ...(torIp
+            ? {
+                tor_proxy: `${torIp}:9050`,
+                tor_only:
+                  onlynetList.length === 1 && onlynetList[0] === 'onion',
+              }
+            : {}),
+        }),
+      )
+
+      return {
+        subcontainer,
+        exec: {
+          command: ['/usr/bin/btc_rpc_proxy', '--conf', '/config.toml'] as [
+            string,
+            ...string[],
+          ],
+        },
+        ready: {
+          display: 'RPC Proxy',
+          fn: () =>
+            sdk.healthCheck.checkPortListening(effects, rpcPort, {
+              successMessage: 'BCHN RPC Proxy is ready',
+              errorMessage: 'BCHN RPC Proxy is not ready',
+            }),
+        },
+        requires: ['primary' as const],
+      }
     })
 })

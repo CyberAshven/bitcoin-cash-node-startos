@@ -16,6 +16,15 @@ export const networkPorts: Record<Network, { rpc: number; peer: number }> = {
   regtest:  { rpc: 18443, peer: 18444 },
 }
 
+// Internal RPC port used by bitcoind when the RPC proxy sidecar is active
+// (pruned mode). The proxy binds the public rpc port and forwards here.
+export const networkRpcPortPruned: Record<Network, number> = {
+  mainnet:  58332,
+  testnet3: 58333,
+  chipnet:  58334,
+  regtest:  58335,
+}
+
 export const networkFlag: Record<Network, string | null> = {
   mainnet:  null,
   testnet3: '-testnet',

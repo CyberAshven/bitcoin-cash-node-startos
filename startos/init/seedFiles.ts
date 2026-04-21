@@ -30,6 +30,7 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
     reindexBlockchain: false,
     reindexChainstate: false,
     fullySynced: false,
+    advertiseClearnetInbound: false,
   })
 
   await bitcoinConfFile.merge(effects, {
@@ -39,6 +40,7 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
     },
     zmqEnabled: true,
     txindex: false,
+    coinstatsindex: true,
     persistmempool: true,
     maxconnections: 125,
     rpcthreads: 4,

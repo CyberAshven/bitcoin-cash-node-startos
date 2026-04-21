@@ -48,6 +48,7 @@ export const shape = z
     zmqpubhashds: iniString,
     zmqpubrawds: iniString,
     txindex: iniBoolean,
+    coinstatsindex: iniBoolean,
     maxconnections: iniNumber,
     rpcservertimeout: iniNumber,
     rpcthreads: iniNumber,
@@ -98,16 +99,34 @@ export const fullConfigSpec = InputSpec.of({
   raw: Value.hidden(shape),
 
   // ── Node Settings ──────────────────────────────────────────────────────────
+  txindex: Value.toggle({
+    name: 'Transaction Index',
+    description:
+      'Build a full transaction index. Required for Fulcrum and other indexers. Cannot be enabled with pruning.',
+    default: true,
+  }),
+  coinstatsindex: Value.toggle({
+    name: 'Coinstats Index',
+    description:
+      'Maintain coinstats index for faster and historical gettxoutsetinfo RPC queries.',
+    default: true,
+  }),
+  peerbloomfilters: Value.toggle({
+    name: 'Serve Bloom Filters (BIP37)',
+    description:
+      'Serve BIP37 bloom filters to peers. Useful for SPV wallets but can be a DoS vector on public-facing nodes.',
+    default: true,
+  }),
   zmqEnabled: Value.toggle({
     name: 'ZeroMQ Enabled',
     description:
       'Enable ZeroMQ notifications for block and transaction events. Required by Fulcrum, block explorers, and similar tools.',
     default: true,
   }),
-  txindex: Value.toggle({
-    name: 'Transaction Index',
+  persistmempool: Value.toggle({
+    name: 'Persist Mempool',
     description:
-      'Build a full transaction index. Required for Fulcrum and other indexers. Cannot be enabled with pruning.',
+      'Save the mempool to disk on shutdown and reload it on startup. Reduces re-propagation work after restarts.',
     default: true,
   }),
   prune: Value.number({
@@ -122,12 +141,6 @@ export const fullConfigSpec = InputSpec.of({
     units: 'MB',
     placeholder: '0 (disabled)',
     warning: 'Enabling pruning disables the transaction index.',
-  }),
-  persistmempool: Value.toggle({
-    name: 'Persist Mempool',
-    description:
-      'Save the mempool to disk on shutdown and reload it on startup. Reduces re-propagation work after restarts.',
-    default: true,
   }),
 
   // ── Performance ────────────────────────────────────────────────────────────
@@ -212,12 +225,6 @@ export const fullConfigSpec = InputSpec.of({
     integer: true,
     units: 'MB/day',
     placeholder: '0 (unlimited)',
-  }),
-  peerbloomfilters: Value.toggle({
-    name: 'Serve Bloom Filters (BIP37)',
-    description:
-      'Serve BIP37 bloom filters to peers. Useful for SPV wallets but can be a DoS vector on public-facing nodes.',
-    default: true,
   }),
   onlynet: Value.multiselect({
     name: 'Allowed Networks',
@@ -353,7 +360,7 @@ function fileToForm(
 ): T.DeepPartial<typeof fullConfigSpec._TYPE> {
   const {
     zmqpubhashblock, zmqpubhashtx, zmqpubrawblock, zmqpubrawtx,
-    txindex, persistmempool,
+    txindex, coinstatsindex, persistmempool,
     maxconnections, peerbloomfilters, onlynet, addnode, maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
@@ -369,7 +376,7 @@ function fileToForm(
   return {
     raw: input ?? {},
     zmqEnabled: !!(zmqpubhashblock && zmqpubhashtx && zmqpubrawblock && zmqpubrawtx),
-    txindex, persistmempool,
+    txindex, coinstatsindex, persistmempool,
     maxconnections, peerbloomfilters,
     onlynet: onlynetForm,
     onionOnly,
@@ -390,6 +397,7 @@ function formToFile(
 ): z.infer<typeof shape> {
   const {
     raw, zmqEnabled, txindex, persistmempool,
+    coinstatsindex,
     maxconnections, peerbloomfilters, onlynet, onionOnly, addnode, maxuploadtarget,
     rpcservertimeout, rpcthreads, rpcworkqueue,
     prune, maxmempool, minrelaytxfee, mempoolexpiry,
@@ -419,6 +427,7 @@ function formToFile(
     rpcauth: raw?.rpcauth?.filter((v): v is string => typeof v === 'string'),
     externalip: raw?.externalip?.filter((v): v is string => typeof v === 'string'),
     txindex: effectiveTxindex,
+    coinstatsindex: coinstatsindex ?? undefined,
     persistmempool: persistmempool ?? true,
     // ZMQ block/tx — conditional
     ...(zmqEnabled

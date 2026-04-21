@@ -21,6 +21,11 @@ export const manifest = setupManifest({
       arch: ['x86_64', 'aarch64'],
       emulateMissingAs: 'x86_64',
     },
+    proxy: {
+      source: { dockerTag: 'ghcr.io/start9labs/btc-rpc-proxy' },
+      arch: ['x86_64', 'aarch64'],
+      emulateMissingAs: 'x86_64',
+    },
   },
   alerts: {
     install:

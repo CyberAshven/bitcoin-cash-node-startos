@@ -12,14 +12,16 @@ export const otherConfig = sdk.Action.withInput(
     visibility: 'enabled' as const,
   }),
   fullConfigSpec.filter({
+    wallet: true,
     txindex: true,
-    prune: true,
+    coinstatsindex: true,
+    peerbloomfilters: true,
     zmqEnabled: true,
     persistmempool: true,
+    prune: true,
     dbcache: true,
     dbbatchsize: true,
     blocknotify: true,
-    wallet: true,
   }),
   async ({ effects: _effects }) => bitcoinConfFile.read().once(),
   async ({ effects, input }) => {
