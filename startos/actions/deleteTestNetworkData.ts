@@ -16,16 +16,14 @@ const inputSpec = InputSpec.of({
     minLength: 0,
     maxLength: null,
     values: {
-      testnet3: 'Testnet3',
       chipnet: 'Chipnet',
       regtest: 'Regtest',
     },
   }),
 })
 
-// Subdirectory names BCHN creates under -datadir for each test network
+// Subdirectory names BCHN creates under -datadir for each supported test network.
 const testNetSubdirs: Record<string, string> = {
-  testnet3: 'testnet3',
   chipnet: 'chipnet',
   regtest: 'regtest',
 }
@@ -35,7 +33,7 @@ export const deleteTestNetworkData = sdk.Action.withInput(
   async ({ effects: _effects }) => ({
     name: 'Delete Test Network Data',
     description:
-      'Delete blockchain data for one or more test networks (Testnet3, Chipnet, Regtest). This frees disk space without touching mainnet.',
+      'Delete blockchain data for one or more test networks (Chipnet, Regtest). This frees disk space without touching mainnet.',
     warning:
       'All block data and chainstate for the selected networks will be permanently deleted. Mainnet is never affected.',
     allowedStatuses: 'only-stopped' as const,
@@ -47,7 +45,7 @@ export const deleteTestNetworkData = sdk.Action.withInput(
     const store = await storeJson.read().once()
     const active: Network = store?.network ?? 'mainnet'
     // Pre-fill everything except the currently active test network
-    const defaults = (['testnet3', 'chipnet', 'regtest'] as const).filter((n) => n !== active)
+    const defaults = (['chipnet', 'regtest'] as const).filter((n) => n !== active)
     return { networks: defaults }
   },
   async ({ effects, input }) => {

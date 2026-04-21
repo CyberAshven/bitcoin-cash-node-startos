@@ -7,12 +7,11 @@ const networkSpec = InputSpec.of({
   network: Value.select({
     name: 'Network',
     description:
-      'Bitcoin Cash network to connect to. Changing this requires a node restart. Note: testnet4 is not available — its default ports (28332/28333) conflict with the ZMQ block notification ports.',
+      'Bitcoin Cash network to connect to. Changing this requires a node restart.',
     warning:
       'Switching networks requires a full restart. The node will sync from scratch on the new network. Your mainnet data is preserved separately on disk.',
     values: {
       mainnet:  'Mainnet (production BCH)',
-      testnet3: 'Testnet3 (legacy test network)',
       chipnet:  'Chipnet (upgrade / chip testing)',
       regtest:  'Regtest (local testing only)',
     },
