@@ -277,7 +277,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
           user: {
             [rpcUser]: {
               password: rpcPassword,
-              allowed_calls: ['*'],
             },
           },
           ...(torIp
